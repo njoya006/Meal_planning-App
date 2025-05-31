@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
   #  'rest_framework.authtoken',
-    'cors-headers',
+    'corsheaders',
     'users',
     'recipes',
 ]
@@ -53,7 +53,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'cors-headers.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Fixed typo here
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',

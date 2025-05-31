@@ -1,4 +1,8 @@
 from django.shortcuts import render
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from .serializers import RecipeSerializer
 
 # Create your views here.
 from django.shortcuts import render, redirect, get_object_or_404
@@ -31,7 +35,7 @@ def recipe_create(request):
     # Render the 'recipe_form.html' template with the form
     return render(request, 'recipes/recipe_form.html', {'form': form})
 
-    def recipe_update(request, pk):
+def recipe_update(request, pk):
     # Get the recipe by primary key (pk) or return a 404 if not found
      recipe = get_object_or_404(Recipe, pk=pk)
      if request.method == "POST":
@@ -44,7 +48,7 @@ def recipe_create(request):
         # If the request is not a POST, create a form instance with the current recipe data
             form = RecipeForm(instance=recipe)
     # Render the 'recipe_form.html' template with the form
-    return render(request, 'recipes/recipe_form.html', {'form': form})
+     return render(request, 'recipes/recipe_form.html', {'form': form})
 
 # View to delete a recipe
 def recipe_delete(request, pk):
@@ -65,3 +69,22 @@ def recipe_suggest(request):
         suggested_recipes = suggest_meals(ingredients)  # Get suggested recipes
         return render(request, 'recipes/recipe_suggest.html', {'recipes': suggested_recipes})
     return render(request, 'recipes/recipe_suggest.html')  # Render suggestion form
+class RecipeCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        form = RecipeForm(request.data)
+        if form.is_valid():
+            recipe = form.save(commit=False)
+            recipe.user = request.user
+            recipe.save()
+            return Response({'message': 'Recipe created successfully!'}, status=201)
+
+
+class UserRecipesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        recipes = Recipe.objects.filter(user=request.user)
+        serializer = RecipeSerializer(recipes, many=True)
+        return Response(serializer.data)

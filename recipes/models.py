@@ -1,6 +1,7 @@
 
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
+
 
 # An ingredient model
 class Ingredient(models.Model):
@@ -14,7 +15,7 @@ class Recipe(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     instructions= models.TextField()
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     ingredients = models.ManyToManyField(Ingredient) 
