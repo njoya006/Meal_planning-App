@@ -1,0 +1,28 @@
+### Login to get token
+POST http://127.0.0.1:8000/api/users/login/
+Content-Type: application/json
+{
+  "username": "Awa",
+  "password": "Awa0006@"
+}
+###
+
+# Replace TOKEN_HERE with the token you get from the login response
+
+### Create a new recipe (requires authentication)
+POST http://127.0.0.1:8000/recipes/api/create/
+Content-Type: application/json
+Authorization: Token ee1d34ea500d6f4fe3f8ab5c1b92f82084213d6f
+
+{
+  "title": "Test Recipe",
+  "description": "A test recipe",
+  "instructions": "Mix and cook.",
+  "ingredients": [1, 2]
+}
+
+###
+
+### Get your recipes (requires authentication)
+GET http://127.0.0.1:8000/recipes/api/my/
+Authorization: Token ee1d34ea500d6f4fe3f8ab5c1b92f82084213d6f
