@@ -8,6 +8,8 @@ from rest_framework.permissions import IsAuthenticated #import the new login ser
 from .permissions import IsAdminUser # Import the custom permission class
 from .models import CustomUser, DietaryPreference # Import your CustomUser model
 from django.contrib.auth import logout # Import logout function
+import requests
+from django.contrib.auth import get_user_model
 
 class UserRegistrationView(APIView):
     def post(self, request):
@@ -125,3 +127,42 @@ class UserLogoutView(APIView):
     def post(self, request):
         logout(request) # Invalidate the session
         return Response({'message': 'Logged out successfully'}, status=status.HTTP_200_OK)
+
+class GoogleLoginView(APIView):
+    def post(self, request):
+        access_token = request.data.get('access_token')
+        if not access_token:
+            return Response({'error': 'Access token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify the token with Google
+        google_userinfo_url = 'https://www.googleapis.com/oauth2/v3/userinfo'
+        resp = requests.get(google_userinfo_url, headers={'Authorization': f'Bearer {access_token}'})
+        if resp.status_code != 200:
+            return Response({'error': 'Invalid Google access token.'}, status=status.HTTP_400_BAD_REQUEST)
+        userinfo = resp.json()
+        email = userinfo.get('email')
+        if not email:
+            return Response({'error': 'Google account email not found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        User = get_user_model()
+        user, created = User.objects.get_or_create(email=email, defaults={
+            'username': email.split('@')[0],
+            'first_name': userinfo.get('given_name', ''),
+            'last_name': userinfo.get('family_name', ''),
+            'is_active': True
+        })
+        # Optionally update user info
+        if not created:
+            user.first_name = userinfo.get('given_name', user.first_name)
+            user.last_name = userinfo.get('family_name', user.last_name)
+            user.save()
+
+        token, _ = Token.objects.get_or_create(user=user)
+        return Response({
+            'token': token.key,
+            'user_id': user.pk,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name
+        }, status=status.HTTP_200_OK)
