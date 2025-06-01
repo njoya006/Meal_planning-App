@@ -1,5 +1,5 @@
-from django.urls import path
-from .views import UserLoginView, UserRegistrationView, UserProfileView, VerifyContributorView, DietaryPreferenceView, ChangePasswordView, UserLogoutView
+from django.urls import path, include
+from .views import UserLoginView, UserRegistrationView, UserProfileView, VerifyContributorView, DietaryPreferenceView, ChangePasswordView, UserLogoutView, GoogleLoginView
 
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='user-registration'),
@@ -12,4 +12,5 @@ urlpatterns = [
     path('preferences/<int:user_id>/delete/', DietaryPreferenceView.as_view(), name='dietary-preferences-delete'),
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('logout/', UserLogoutView.as_view(), name='user-logout'),
+    path('google-login/', GoogleLoginView.as_view(), name='google-login'),
 ]
