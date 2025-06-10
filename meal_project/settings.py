@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'planner',
+    'recipes',
 ]
 
 MIDDLEWARE = [
@@ -126,7 +127,13 @@ TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
+USE_L10N = True  # Enable localized formatting of data
+
 USE_TZ = True
+
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',
+]
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -143,6 +150,12 @@ REST_FRAMEWORK = {
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Media files (User uploads)
+# https://docs.djangoproject.com/en/5.2/topics/files/
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -206,7 +219,12 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-
+# BASIC_INGREDIENTS: Optional override for the default list of basic ingredients assumed to be available in every kitchen.
+# To override, uncomment and edit the list below:
+# BASIC_INGREDIENTS = [
+#     'salt', 'pepper', 'oil', 'water', 'sugar', 'flour', 'butter', 'garlic', 'onion',
+#     'vinegar', 'baking powder', 'baking soda', 'soy sauce', 'eggs', 'milk',
+# ]
 
 
 # Alternatively, for very simple local development (less secure for production):

@@ -138,4 +138,9 @@ class ChangePasswordSerializer(serializers.Serializer):
             raise serializers.ValidationError({"new_password": "New passwords must match."})
         # You might add more password validation here (e.g., strength checks)
         return data
-    
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Serializer for CustomUser profile, including region for localization."""
+    class Meta:
+        model = CustomUser
+        fields = ['id', 'username', 'email', 'role', 'is_verified_contributor', 'region']
