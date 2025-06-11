@@ -48,13 +48,11 @@ INSTALLED_APPS = [
     'corsheaders',
     'users',
     'rating',
-    'recipe',
     'dj_rest_auth',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
-    'planner',
     'recipes',
 ]
 
