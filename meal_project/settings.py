@@ -49,6 +49,13 @@ INSTALLED_APPS = [
     'users',
     'rating',
     'recipe',
+    'dj_rest_auth',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'planner',
+    'recipes',
 ]
 
 MIDDLEWARE = [
@@ -58,6 +65,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -121,7 +129,13 @@ TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
+USE_L10N = True  # Enable localized formatting of data
+
 USE_TZ = True
+
+LOCALE_PATHS = [
+    BASE_DIR / 'locale',
+]
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -138,6 +152,12 @@ REST_FRAMEWORK = {
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Media files (User uploads)
+# https://docs.djangoproject.com/en/5.2/topics/files/
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -170,7 +190,43 @@ CORS_ALLOWED_HEADERS = [
     'X-CSRFToken'
 ]
 
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
 
+SITE_ID = 1
+
+# dj-rest-auth and allauth settings
+REST_USE_JWT = False  # You can enable JWT if you want
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = True
+ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+ACCOUNT_EMAIL_VERIFICATION = 'optional'
+
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'APP': {
+            'client_id': 'YOUR_GOOGLE_CLIENT_ID',  # <-- Replace with your actual client ID
+            'secret': 'YOUR_GOOGLE_CLIENT_SECRET',  # <-- Replace with your actual client secret
+            'key': ''
+        }
+    }
+}
+
+# BASIC_INGREDIENTS: Optional override for the default list of basic ingredients assumed to be available in every kitchen.
+# To override, uncomment and edit the list below:
+# BASIC_INGREDIENTS = [
+#     'salt', 'pepper', 'oil', 'water', 'sugar', 'flour', 'butter', 'garlic', 'onion',
+#     'vinegar', 'baking powder', 'baking soda', 'soy sauce', 'eggs', 'milk',
+# ]
 
 
 # Alternatively, for very simple local development (less secure for production):

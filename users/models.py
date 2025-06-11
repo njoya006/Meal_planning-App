@@ -14,15 +14,14 @@ class CustomUser(AbstractUser):
     ]
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=USER)
     is_verified_contributor = models.BooleanField(default=False)
+    region = models.CharField(max_length=10, default='global', help_text="User's region for ingredient localization.")
 
-    def _str_(self):
+    def __str__(self):
         return self.username
 
 class DietaryPreference(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='dietary_preferences')
-    # This will be a comma-separated string for simplicity
-    # E.g., "vegetarian,gluten-free,peanut-allergy"
-    preferences = models.TextField(blank=True, default="")
+    preferences = models.TextField(blank=True, default="", help_text="Comma-separated dietary preferences, e.g. 'vegetarian,gluten-free,peanut-allergy'")
 
     def __str__(self):
         return f"Preferences for {self.user.username}"
