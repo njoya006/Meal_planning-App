@@ -217,6 +217,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://192.168.137.243:3000",
     "http://192.168.137.243:8000",
     "http://localhost:3000",
+    "https://frontendsmo.vercel.app",
 ]
 
 SITE_ID = 1
