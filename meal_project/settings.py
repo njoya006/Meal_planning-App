@@ -37,6 +37,7 @@ CSRF_COOKIE_AGE = 31449600  # 1 year
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
+    'njoya.pythonanywhere.com',
 ]
 
 
@@ -187,6 +188,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://192.168.137.243:8000",
     "http://localhost:3000",
     "https://frontendsmo.vercel.app",
+    "https://njoya.pythonanywhere.com",
 ]
 
 CORS_ALLOW_HEADERS = [
@@ -218,6 +220,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://192.168.137.243:8000",
     "http://localhost:3000",
     "https://frontendsmo.vercel.app",
+    "https://njoya.pythonanywhere.com",
 ]
 
 SITE_ID = 1
