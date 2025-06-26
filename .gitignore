@@ -19,3 +19,5 @@ csrf-debug-tool.html
 debug-recipe-creation.html
 debug_recipe_creation.py
 check_db.py
+profile-photo-debug.html
+test_views.py
