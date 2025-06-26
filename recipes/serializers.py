@@ -82,6 +82,10 @@ class RecipeSerializer(serializers.ModelSerializer):
     category_names = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
     cuisine_names = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
     tag_names = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
+    # Convert image field to full URL
+    image = serializers.SerializerMethodField()
+    # Write-only field for image uploads
+    image_upload = serializers.ImageField(write_only=True, required=False)
 
     class Meta:
         model = Recipe
@@ -89,9 +93,19 @@ class RecipeSerializer(serializers.ModelSerializer):
             'id', 'contributor', 'contributor_id', 'title', 'description', 'instructions',
             'prep_time', 'cook_time', 'servings', 'created_at', 'updated_at', 'ingredients',
             'ingredients_data', 'approved', 'feedback', 'slug', 'is_active', 'difficulty', 'source',
-            'categories', 'category_names', 'cuisines', 'cuisine_names', 'tags', 'tag_names', 'image'
+            'categories', 'category_names', 'cuisines', 'cuisine_names', 'tags', 'tag_names', 'image', 'image_upload'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'contributor', 'approved', 'feedback', 'categories', 'cuisines', 'tags']
+
+    def get_image(self, obj):
+        """Return the full URL for the recipe image."""
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            else:
+                return obj.image.url
+        return None
 
     def to_internal_value(self, data):
         """Override to handle ingredients field mapping."""
@@ -119,6 +133,11 @@ class RecipeSerializer(serializers.ModelSerializer):
         category_names = validated_data.pop('category_names', [])
         cuisine_names = validated_data.pop('cuisine_names', [])
         tag_names = validated_data.pop('tag_names', [])
+        
+        # Handle image upload
+        image_upload = validated_data.pop('image_upload', None)
+        if image_upload:
+            validated_data['image'] = image_upload
         
         # Look up objects by name
         categories = self._get_objs_by_names(Category, category_names) if category_names else []
@@ -165,6 +184,11 @@ class RecipeSerializer(serializers.ModelSerializer):
         category_names = validated_data.pop('category_names', None)
         cuisine_names = validated_data.pop('cuisine_names', None)
         tag_names = validated_data.pop('tag_names', None)
+        
+        # Handle image upload
+        image_upload = validated_data.pop('image_upload', None)
+        if image_upload:
+            validated_data['image'] = image_upload
         
         # Update basic recipe fields
         for attr, value in validated_data.items():
