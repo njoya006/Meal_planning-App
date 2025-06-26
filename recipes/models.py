@@ -1,15 +1,36 @@
+"""Recipe models for the ChopSmo application."""
+
+from django.conf import settings
 from django.db import models
-from django.conf import settings # To link to your CustomUser model
 from django.db.models import Sum, F
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
+
 class Ingredient(models.Model):
+    """Model representing a recipe ingredient."""
+    
     name = models.CharField(max_length=100, unique=True, help_text="Ingredient name.")
-    calories_per_100g = models.FloatField(_('Calories per 100g'), default=0, help_text=_('Calories per 100g'))
-    protein_per_100g = models.FloatField(_('Protein per 100g (g)'), default=0, help_text=_('Protein per 100g (g)'))
-    fat_per_100g = models.FloatField(_('Fat per 100g (g)'), default=0, help_text=_('Fat per 100g (g)'))
-    carbs_per_100g = models.FloatField(_('Carbs per 100g (g)'), default=0, help_text=_('Carbs per 100g (g)'))
+    calories_per_100g = models.FloatField(
+        _('Calories per 100g'), 
+        default=0, 
+        help_text=_('Calories per 100g')
+    )
+    protein_per_100g = models.FloatField(
+        _('Protein per 100g (g)'), 
+        default=0, 
+        help_text=_('Protein per 100g (g)')
+    )
+    fat_per_100g = models.FloatField(
+        _('Fat per 100g (g)'), 
+        default=0, 
+        help_text=_('Fat per 100g (g)')
+    )
+    carbs_per_100g = models.FloatField(
+        _('Carbs per 100g (g)'), 
+        default=0, 
+        help_text=_('Carbs per 100g (g)')
+    )
     created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     created_by = models.ForeignKey(
@@ -35,6 +56,7 @@ class Ingredient(models.Model):
         verbose_name_plural = "Ingredients"
 
     def save(self, *args, **kwargs):
+        """Save ingredient with audit fields."""
         user = kwargs.pop('user', None)
         if not self.pk and not self.created_by:
             self.created_by = user
@@ -45,7 +67,10 @@ class Ingredient(models.Model):
     def __str__(self):
         return self.name
 
+
 class Category(models.Model):
+    """Model representing a recipe category."""
+    
     name = models.CharField(_('Name'), max_length=100, unique=True)
     created_at = models.DateTimeField(_('Created at'), auto_now_add=True, null=True, blank=True)
     updated_at = models.DateTimeField(_('Updated at'), auto_now=True, null=True, blank=True)
@@ -160,6 +185,15 @@ UNIT_CHOICES = [
     ('tsp', 'teaspoon'),
     ('piece', 'piece'),
     ('slice', 'slice'),
+    ('clove', 'clove'),
+    ('cloves', 'cloves'),
+    ('pinch', 'pinch'),
+    ('dash', 'dash'),
+    ('handful', 'handful'),
+    ('bunch', 'bunch'),
+    ('can', 'can'),
+    ('bottle', 'bottle'),
+    ('package', 'package'),
     # Add more as needed
 ]
 
@@ -212,13 +246,23 @@ class Recipe(models.Model):
     )
     categories = models.ManyToManyField('Category', blank=True, related_name='recipes')
     cuisines = models.ManyToManyField('Cuisine', blank=True, related_name='recipes')
-    tags = models.ManyToManyField('Tag', blank=True, related_name='recipes')
-
-    # You could also add fields like:
+    tags = models.ManyToManyField('Tag', blank=True, related_name='recipes')    # You could also add fields like:
     # dietary_preferences = models.ManyToManyField(DietaryPreference, blank=True) # if you link to users.DietaryPreference
 
     def __str__(self):
         return self.title
+
+    def _generate_unique_slug(self):
+        """Generate a unique slug for the recipe."""
+        base_slug = slugify(self.title)
+        unique_slug = base_slug
+        counter = 1
+        
+        while Recipe.objects.filter(slug=unique_slug).exclude(pk=self.pk).exists():
+            unique_slug = f"{base_slug}-{counter}"
+            counter += 1
+        
+        return unique_slug
 
     def save(self, *args, **kwargs):
         # Accept a special kwarg: user
@@ -228,7 +272,7 @@ class Recipe(models.Model):
         if user:
             self.updated_by = user
         if not self.slug:
-            self.slug = slugify(self.title)
+            self.slug = self._generate_unique_slug()
         super().save(*args, **kwargs)
 
     def calculate_nutrition(self):

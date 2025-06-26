@@ -1,31 +1,42 @@
-from rest_framework import serializers
+import base64
+
+from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
-from .models import CustomUser, DietaryPreference  # Import your CustomUser model
-from django.contrib.auth import authenticate #used for authenticating username/password
+from django.core.files.base import ContentFile
+from rest_framework import serializers
+
+from .models import CustomUser, DietaryPreference
+from recipes.models import Recipe
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
+    """Serializer for user registration."""
+    
     password = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = CustomUser
-        fields = ('username', 'email', 'password', 'first_name', 'last_name')  # Fields required for registration
+        fields = ('username', 'email', 'password', 'first_name', 'last_name')
 
     def validate_password(self, value):
-        # Basic password validation (you can add more complexity)
+        """Validate password strength."""
         if len(value) < 8:
             raise serializers.ValidationError("Password must be at least 8 characters long.")
         return value
 
     def create(self, validated_data):
-        validated_data['password'] = make_password(validated_data['password'])  # Hash the password
+        """Create a new user with hashed password."""
+        validated_data['password'] = make_password(validated_data['password'])
         return CustomUser.objects.create(**validated_data)
     
 class UserLoginSerializer(serializers.Serializer):
-    username = serializers.CharField(required=False) # Can be username or email
+    """Serializer for user login with username or email."""
+    
+    username = serializers.CharField(required=False)  # Can be username or email
     email = serializers.EmailField(required=False)
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
+        """Validate login credentials."""
         username = data.get('username')
         email = data.get('email')
         password = data.get('password')
@@ -43,23 +54,11 @@ class UserLoginSerializer(serializers.Serializer):
         elif email:
             # Authenticate by email
             try:
-                # Find user by email, then try to authenticate with their username
-                # This assumes username is unique, or you want to allow email login
-                # by finding the user and then authenticating with their username
-                # which is what authenticate() expects.
-                # A more robust email login might involve a custom authentication backend.
-                 # For simplicity, let's assume username is also email if logging in via email for now,
-                # or that a user object can be retrieved by email and then authenticated.
-                # A common pattern is to fetch the user by email, then pass their username to authenticate().
-
-                # More robust email login:
-                # Try to find a user with the given email first
+                # Find user by email, then authenticate with their username
                 temp_user = CustomUser.objects.get(email=email)
                 user = authenticate(username=temp_user.username, password=password)
-
             except CustomUser.DoesNotExist:
                 raise serializers.ValidationError("Invalid credentials.")
-
 
         if not user:
             raise serializers.ValidationError("Invalid credentials.")
@@ -68,51 +67,77 @@ class UserLoginSerializer(serializers.Serializer):
         if not user.is_active:
             raise serializers.ValidationError("User account is disabled.")
 
-        data['user'] = user # Attach the user object to validated data
+        data['user'] = user  # Attach the user object to validated data
         return data
 
 class UserProfileUpdateSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(required=False, allow_blank=True) # Make email optional and allow empty string
+    """Serializer for updating user profile information."""
+    
+    email = serializers.EmailField(required=False, allow_blank=True)
     first_name = serializers.CharField(required=False, allow_blank=True)
     last_name = serializers.CharField(required=False, allow_blank=True)
-
-    # We don't include 'username' here because it's generally not changed after registration.
-    # We also don't include 'password' directly, as password changes should be a separate endpoint for security.
-    # 'role' and 'is_verified_contributor' should not be editable by the user themselves.
+    phone_number = serializers.CharField(allow_blank=True, required=False)
+    date_of_birth = serializers.DateField(allow_null=True, required=False)
+    location = serializers.CharField(allow_blank=True, required=False)
+    basic_ingredients = serializers.CharField(allow_blank=True, required=False)
+    profile_photo = serializers.ImageField(required=False, allow_null=True, write_only=True)
+    profile_photo_base64 = serializers.CharField(required=False, allow_blank=True, write_only=True)
 
     class Meta:
         model = CustomUser
-        # Fields that a user can update themselves
-        fields = ('email', 'first_name', 'last_name')
-        # Ensure these fields are not required for an update
+        fields = (
+            'email', 'first_name', 'last_name', 'phone_number', 'date_of_birth', 
+            'location', 'basic_ingredients', 'profile_photo', 'profile_photo_base64'
+        )
         extra_kwargs = {
             'email': {'required': False},
             'first_name': {'required': False},
             'last_name': {'required': False},
+            'phone_number': {'required': False},
+            'date_of_birth': {'required': False},
+            'location': {'required': False},
+            'basic_ingredients': {'required': False},
+            'profile_photo': {'required': False},
+            'profile_photo_base64': {'required': False},
         }
 
     def validate_email(self, value):
-        # Allow email to be blank or the user's current email
+        """Validate that email is unique."""
         if value and value != self.instance.email:
             if CustomUser.objects.filter(email=value).exists():
                 raise serializers.ValidationError("This email is already in use.")
         return value
     
     def update(self, instance, validated_data):
+        """Update user profile with optional base64 image handling."""
+        profile_photo_base64 = validated_data.pop('profile_photo_base64', None)
+        if profile_photo_base64:
+            format_str, imgstr = (
+                profile_photo_base64.split(';base64,') 
+                if ';base64,' in profile_photo_base64 
+                else (None, profile_photo_base64)
+            )
+            ext = format_str.split('/')[-1] if format_str else 'jpg'
+            instance.profile_photo = ContentFile(
+                base64.b64decode(imgstr), 
+                name=f'profile_{instance.pk}.{ext}'
+            )
+        
         # Update only the provided fields
-        instance.first_name = validated_data.get('first_name', instance.first_name)
-        instance.last_name = validated_data.get('last_name', instance.last_name)
-        instance.email = validated_data.get('email', instance.email)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
         instance.save()
         return instance
     
 class DietaryPreferenceSerializer(serializers.ModelSerializer):
+    """Serializer for dietary preferences."""
+    
     class Meta:
         model = DietaryPreference
-        fields = ['preferences'] # Only exposing the 'preferences' field
+        fields = ['preferences']
 
     def to_representation(self, instance):
-        # Convert the comma-separated string back to a list for output
+        """Convert preferences string to list for API response."""
         data = super().to_representation(instance)
         if data['preferences']:
             data['preferences'] = [p.strip() for p in data['preferences'].split(',')]
@@ -121,26 +146,64 @@ class DietaryPreferenceSerializer(serializers.ModelSerializer):
         return data
 
     def to_internal_value(self, data):
-        # Convert a list of preferences from input back to a comma-separated string
+        """Convert preferences list to string for database storage."""
         if 'preferences' in data and isinstance(data['preferences'], list):
             data['preferences'] = ','.join(data['preferences'])
         return super().to_internal_value(data)
-    
-# Add this to your users/serializers.py file
+
 
 class ChangePasswordSerializer(serializers.Serializer):
+    """Serializer for changing user password."""
+    
     old_password = serializers.CharField(required=True, write_only=True)
     new_password = serializers.CharField(required=True, write_only=True)
     confirm_new_password = serializers.CharField(required=True, write_only=True)
 
     def validate(self, data):
+        """Validate that new passwords match."""
         if data['new_password'] != data['confirm_new_password']:
             raise serializers.ValidationError({"new_password": "New passwords must match."})
-        # You might add more password validation here (e.g., strength checks)
         return data
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    """Serializer for CustomUser profile, including region for localization."""
+    """Serializer for user profile display."""
+    
+    username = serializers.CharField(read_only=True)
+    profile_photo = serializers.ImageField(read_only=True)
+    dietary_preferences = serializers.SerializerMethodField()
+
     class Meta:
         model = CustomUser
-        fields = ['id', 'username', 'email', 'role', 'is_verified_contributor', 'region']
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name', 'role',
+            'is_verified_contributor', 'phone_number', 'date_of_birth',
+            'location', 'basic_ingredients', 'dietary_preferences', 'profile_photo'
+        ]
+
+    def get_dietary_preferences(self, obj):
+        """Return dietary preferences as a list."""
+        try:
+            prefs = obj.dietary_preferences.preferences
+            if prefs:
+                return [p.strip() for p in prefs.split(',')]
+        except (AttributeError, DietaryPreference.DoesNotExist):
+            pass
+        return []
+
+
+class RecipeSerializer(serializers.ModelSerializer):
+    """Serializer for recipe display with contributor info."""
+    
+    contributor = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Recipe
+        fields = '__all__'
+
+    def get_contributor(self, obj):
+        """Return minimal contributor information."""
+        user = obj.contributor
+        return {
+            'username': user.username,
+            'basic_ingredients': user.basic_ingredients
+        } if user else None

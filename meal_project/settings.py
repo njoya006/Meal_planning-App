@@ -25,13 +25,19 @@ SECRET_KEY = 'django-insecure-fpz@@et1*1%$_@(chq^*%tcfg#4m__11+8u(_u6!!22-1@&f#o
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+# CSRF Configuration
 CSRF_COOKIE_NAME = "csrftoken"
 CSRF_HEADER_NAME = "X-CSRFToken"
+CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access to CSRF cookie
+CSRF_COOKIE_SAMESITE = 'Lax'  # Allow cross-site requests for development
+CSRF_USE_SESSIONS = False  # Use cookies instead of sessions for CSRF
+CSRF_COOKIE_AGE = 31449600  # 1 year
 
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
-    ]
+]
 
 
 # Application definition
@@ -127,7 +133,7 @@ TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
-USE_L10N = True  # Enable localized formatting of data
+USE_L10N = True
 
 USE_TZ = True
 
@@ -137,11 +143,11 @@ LOCALE_PATHS = [
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication', # <--- Make sure this is present
-        # 'rest_framework.authentication.SessionAuthentication', # Optional, useful for browser API
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny', # Default if not specified on view, but IsAuthenticated overrides it
+        'rest_framework.permissions.IsAuthenticated',
     ]
 }
 
@@ -169,23 +175,25 @@ AUTH_USER_MODEL = 'users.CustomUser'
 # ... (other settings) ...
 
 CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:8000", # The Django server itself
-    "http://localhost:8000", # The Django server itself
-
-    # IMPORTANT: Add the origin where your HTML file is served from
-    # If you open index.html directly, its origin might be 'null' or 'file://'
-    # For development, you might use an extension like Live Server, which gives it a port
-    "http://127.0.0.1:5500", # Example if you use VS Code's Live Server
-    "http://localhost:5500", # Example if you use VS Code's Live Server
-
-    # If you are using a different port for your HTML file, add it here.
-    # You can check your browser's address bar when you open the HTML file.
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+    "http://127.0.0.1:5501",
+    "http://localhost:5501",
+    "http://192.168.137.247:8000",
+    "http://192.168.137.247:3000",
+    "http://192.168.137.243:3000",
+    "http://192.168.137.243:8000",
+    "http://localhost:3000",
 ]
 
-CORS_ALLOWED_HEADERS = [
+CORS_ALLOW_HEADERS = [
     'authorization',
     'content-type',
-    'X-CSRFToken'
+    'x-csrftoken',
+    'x-requested-with',
+    'referer'
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -193,13 +201,29 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
+CORS_ALLOW_CREDENTIALS = True
+
+# Add CSRF trusted origins for frontend
+CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1:5500",
+    "http://localhost:5500", 
+    "http://127.0.0.1:5501",
+    "http://localhost:5501",
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
+    "http://192.168.137.247:8000",
+    "http://192.168.137.247:3000",
+    "http://192.168.137.243:3000",
+    "http://192.168.137.243:8000",
+    "http://localhost:3000",
+]
+
 SITE_ID = 1
 
 # dj-rest-auth and allauth settings
-REST_USE_JWT = False  # You can enable JWT if you want
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_USERNAME_REQUIRED = True
-ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+REST_USE_JWT = False
+ACCOUNT_SIGNUP_FIELDS = ['username', 'email']
+ACCOUNT_LOGIN_METHOD = 'username_email'
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
 
 SOCIALACCOUNT_PROVIDERS = {
@@ -212,8 +236,8 @@ SOCIALACCOUNT_PROVIDERS = {
             'access_type': 'online',
         },
         'APP': {
-            'client_id': 'YOUR_GOOGLE_CLIENT_ID',  # <-- Replace with your actual client ID
-            'secret': 'YOUR_GOOGLE_CLIENT_SECRET',  # <-- Replace with your actual client secret
+            'client_id': 'YOUR_GOOGLE_CLIENT_ID',
+            'secret': 'YOUR_GOOGLE_CLIENT_SECRET',
             'key': ''
         }
     }

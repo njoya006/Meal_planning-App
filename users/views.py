@@ -3,15 +3,23 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authtoken.models import Token # Import Token model for authentication
-from .serializers import DietaryPreferenceSerializer, UserRegistrationSerializer, UserLoginSerializer, UserProfileUpdateSerializer
+from .serializers import DietaryPreferenceSerializer, UserRegistrationSerializer, UserLoginSerializer, UserProfileUpdateSerializer, UserProfileSerializer
 from rest_framework.permissions import IsAuthenticated #import the new login serializer
 from .permissions import IsAdminUser # Import the custom permission class
 from .models import CustomUser, DietaryPreference # Import your CustomUser model
 from django.contrib.auth import logout # Import logout function
 import requests
 from django.contrib.auth import get_user_model
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 
 class UserRegistrationView(APIView):
+    permission_classes = []  # AllowAny by default
+
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
     def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
         if serializer.is_valid():
@@ -20,6 +28,12 @@ class UserRegistrationView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class UserLoginView(APIView):
+    permission_classes = []  # AllowAny by default
+
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+
     def post(self, request):
         serializer = UserLoginSerializer(data=request.data)
         if serializer.is_valid():
@@ -40,16 +54,48 @@ class UserProfileView(APIView):
     permission_classes = [IsAuthenticated] # <--- This ensures only logged-in users can access
 
     def get(self, request):
-        # Retrieve and return the current user's profile
-        serializer = UserProfileUpdateSerializer(request.user)
+        # Use the full UserProfileSerializer to include all fields (username, profile_photo, etc.)
+        serializer = UserProfileSerializer(request.user)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request):
-        # Update the current user's profile
-        serializer = UserProfileUpdateSerializer(request.user, data=request.data, partial=True) # partial=True allows partial updates
+        serializer = UserProfileUpdateSerializer(request.user, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            # Update dietary preferences if present
+            dietary_preferences = request.data.get('dietary_preferences')
+            if dietary_preferences is not None:
+                preference_obj, _ = DietaryPreference.objects.get_or_create(user=request.user)
+                preference_obj.preferences = dietary_preferences
+                preference_obj.save()
+            # Update basic ingredients if present
+            basic_ingredients = request.data.get('basic_ingredients')
+            if basic_ingredients is not None:
+                request.user.basic_ingredients = basic_ingredients
+                request.user.save()
+            # Return the full profile with all fields
+            full_serializer = UserProfileSerializer(request.user)
+            return Response(full_serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request):
+        serializer = UserProfileUpdateSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            # Update dietary preferences if present
+            dietary_preferences = request.data.get('dietary_preferences')
+            if dietary_preferences is not None:
+                preference_obj, _ = DietaryPreference.objects.get_or_create(user=request.user)
+                preference_obj.preferences = dietary_preferences
+                preference_obj.save()
+            # Update basic ingredients if present
+            basic_ingredients = request.data.get('basic_ingredients')
+            if basic_ingredients is not None:
+                request.user.basic_ingredients = basic_ingredients
+                request.user.save()
+            # Return the full profile with all fields
+            full_serializer = UserProfileSerializer(request.user)
+            return Response(full_serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class VerifyContributorView(APIView):
@@ -93,8 +139,15 @@ class DietaryPreferenceView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    # Note: You might also consider a PATCH method for partial updates,
-    # but for a single TextField of preferences, PUT works fine.
+    def patch(self, request):
+        # Partially update the dietary preferences for the current user
+        preference, created = DietaryPreference.objects.get_or_create(user=request.user)
+        serializer = DietaryPreferenceSerializer(preference, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     def delete(self, request):
         # Delete the dietary preferences for the current user
         try:

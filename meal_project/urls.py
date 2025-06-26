@@ -18,9 +18,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from . import csrf_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/csrf-token/', csrf_views.get_csrf_token, name='csrf_token'),
+    path('api/csrf-debug/', csrf_views.csrf_debug, name='csrf_debug'),
+    path('api/test-upload-no-csrf/', csrf_views.test_upload_no_csrf, name='test_upload_no_csrf'),
     path('api/users/', include('users.urls')),
     path('api/dj-rest-auth/', include('dj_rest_auth.urls')),
     path('api/dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')),

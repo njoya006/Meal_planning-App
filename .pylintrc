@@ -1,0 +1,9 @@
+[MASTER]
+load-plugins=pylint_django
+django-settings-module=meal_project.settings
+
+[MESSAGES CONTROL]
+disable=C0111,R0903,R0913,C0103,W0212,E1101,R0801
+
+[FORMAT]
+max-line-length=100

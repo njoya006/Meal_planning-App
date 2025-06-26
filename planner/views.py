@@ -3,7 +3,7 @@
 from rest_framework import viewsets, permissions, filters
 from .models import MealPlan, NutritionInfo, DietaryRule
 from .serializers import MealPlanSerializer, NutritionInfoSerializer, DietaryRuleSerializer
-from .permissions import IsVerifiedContributor
+from .permissions import IsVerifiedContributor # Used by NutritionInfoViewSet
 from rest_framework import serializers
 from users.models import DietaryPreference
 from recipes.models import Recipe, BasicIngredient, UserPantry
@@ -40,19 +40,48 @@ class MealPlanViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        # Only allow meal plans that match user's dietary preferences
         user = self.request.user
+        preferences = []
         try:
-            preferences = user.dietary_preferences.preferences.split(',')
-            preferences = [p.strip().lower() for p in preferences if p.strip()]
+            user_prefs_obj = user.dietary_preferences
+            if user_prefs_obj and user_prefs_obj.preferences:
+                preferences = [p.strip().lower() for p in user_prefs_obj.preferences.split(',') if p.strip()]
         except Exception:
             preferences = []
-        recipe = serializer.validated_data['recipe']
-        if preferences:
-            recipe_ingredient_names = set(recipe.ingredients.values_list('name', flat=True))
-            if not recipe_ingredient_names.intersection(preferences):
-                raise serializers.ValidationError("This recipe does not match your dietary preferences.")
-        serializer.save(user=user)
+
+        if 'recipe' not in serializer.validated_data:
+            raise serializers.ValidationError({'recipe': 'Recipe information is missing or invalid.'})
+
+        recipe_data = serializer.validated_data['recipe']
+        try:
+            if isinstance(recipe_data, dict):
+                recipe_id = recipe_data.get('id')
+                if recipe_id:
+                    recipe = Recipe.objects.get(id=recipe_id)
+                else:
+                    recipe_title = recipe_data.get('title')
+                    recipe = Recipe.objects.filter(title=recipe_title).first()
+                    if not recipe:
+                        raise serializers.ValidationError("Recipe not found.")
+            else:
+                recipe = recipe_data
+
+            if preferences:
+                recipe_ingredient_names = set(i.strip().lower() for i in recipe.ingredients.values_list('name', flat=True))
+                preferences_set = set(p.strip().lower() for p in preferences)
+                print(f"[DEBUG] User dietary preferences: {preferences_set}")
+                print(f"[DEBUG] Recipe ingredient names: {recipe_ingredient_names}")
+                forbidden_ingredients = recipe_ingredient_names.intersection(preferences_set)
+                if forbidden_ingredients:
+                    raise serializers.ValidationError(f"This recipe contains ingredients you wish to avoid: {', '.join(forbidden_ingredients)}.")
+            serializer.save(user=user)
+        except serializers.ValidationError as ve:
+            # Let DRF handle these
+            raise ve
+        except Exception as e:
+            import traceback
+            print('[ERROR] Exception in perform_create:', traceback.format_exc())
+            raise serializers.ValidationError({'detail': 'An unexpected error occurred. Please check your input and try again.'})
 
     @action(detail=False, methods=['get'], url_path='system-recommendations')
     def system_recommendations(self, request):
@@ -94,11 +123,17 @@ class MealPlanViewSet(viewsets.ModelViewSet):
             preferences = [p.strip().lower() for p in preferences if p.strip()]
         except Exception:
             preferences = []
+        # --- USER PROFILE BASIC INGREDIENTS LOGIC ---
+        user_profile_basics = []
+        if hasattr(request.user, 'basic_ingredients') and request.user.basic_ingredients:
+            user_profile_basics = [b.strip().lower() for b in request.user.basic_ingredients.split(',') if b.strip()]
+        # Merge all sources of basics
+        all_basic_ingredients = list(set(basic_ingredients + user_profile_basics))
         # --- API Flexibility: Allow opt-out of assumed basics via query param ---
         assume_basics = request.query_params.get('assume_basics', 'true').lower() != 'false'
         # Only add basic_ingredients if not opted out
         if assume_basics:
-            combined_positive_prefs = list(set(preferences + basic_ingredients + user_pantry_ingredients))
+            combined_positive_prefs = list(set(preferences + all_basic_ingredients + user_pantry_ingredients))
         else:
             combined_positive_prefs = list(set(preferences + user_pantry_ingredients))
         if not preferences and not rule_id:
@@ -214,4 +249,3 @@ class DietaryRuleViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name', 'description', 'user__username']
     ordering_fields = ['priority', 'name', 'created_at']
-

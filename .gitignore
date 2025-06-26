@@ -5,3 +5,17 @@ __pycache__
 db.sqlite3
 .vscode
 .history
+test_frontend_fix.py
+test_frontend_fix.py
+test_frontend_recipe.py
+test_ingredient_autocreation.py
+test_recipe_admin_visibility.py
+test_recipe_formats.py
+test_recipe_ingredients.py
+test_slug_fix.py
+test_units_simple.py
+recipe-debug-tool.html
+csrf-debug-tool.html
+debug-recipe-creation.html
+debug_recipe_creation.py
+check_db.py

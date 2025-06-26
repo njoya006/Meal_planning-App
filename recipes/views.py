@@ -1,20 +1,35 @@
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
-from .models import Recipe, Ingredient, Category, Cuisine, Tag
-from .serializers import RecipeSerializer, IngredientSerializer, CategorySerializer, CuisineSerializer, TagSerializer
-from .permissions import IsVerifiedContributor # Import your custom permission
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework import status
+from difflib import get_close_matches
+
 from django.db import models
 from django.db.models import Count
-from .bad_ingredients import get_bad_ingredient_pairs, get_bad_ingredient_triplets, get_bad_ingredient_categories, get_ingredient_substitutions
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.response import Response
+
+from .bad_ingredients import (
+    get_bad_ingredient_pairs, 
+    get_bad_ingredient_triplets, 
+    get_bad_ingredient_categories, 
+    get_ingredient_substitutions
+)
+from .models import Recipe, Ingredient, Category, Cuisine, Tag
+from .permissions import IsVerifiedContributor
+from .serializers import (
+    RecipeSerializer, 
+    IngredientSerializer, 
+    CategorySerializer, 
+    CuisineSerializer, 
+    TagSerializer
+)
 
 class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.filter(is_active=True).order_by('-created_at')
     serializer_class = RecipeSerializer
+    parser_classes = [MultiPartParser, FormParser, JSONParser]  # Support file uploads
 
     # Permission configuration:
     # - IsAuthenticatedOrReadOnly: Allows unauthenticated users to read (GET), but requires authentication for others.
@@ -29,19 +44,45 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Automatically set the contributor and audit fields to the current authenticated user
         user = self.request.user if self.request.user.is_authenticated else None
-        serializer.save(contributor=user, user=user)
+        serializer.save(contributor=user)
 
     def perform_update(self, serializer):
         # Update audit fields on update
         user = self.request.user if self.request.user.is_authenticated else None
-        serializer.save(user=user)
+        serializer.save(contributor=user)
 
     @action(detail=False, methods=['post'], url_path='suggest-by-ingredients')
     def suggest_by_ingredients(self, request):
         ingredient_names = request.data.get('ingredient_names', [])
         if not isinstance(ingredient_names, list) or len(ingredient_names) < 4:
             return Response({'error': 'Please provide at least 4 ingredient names.'}, status=400)
+        # Normalize input
         lower_names = [name.strip().lower() for name in ingredient_names]
+        # Get all valid ingredient names from DB
+        all_ingredients = list(Ingredient.objects.values_list('name', flat=True))
+        all_ingredients_lower = [n.lower() for n in all_ingredients]
+        valid_names = []
+        suggestions = {}
+        for name in lower_names:
+            if name in all_ingredients_lower:
+                valid_names.append(all_ingredients[all_ingredients_lower.index(name)])
+            else:
+                # Fuzzy match: suggest closest ingredient(s)
+                matches = get_close_matches(name, all_ingredients_lower, n=1, cutoff=0.7)
+                if matches:
+                    suggestions[name] = all_ingredients[all_ingredients_lower.index(matches[0])]
+                else:
+                    suggestions[name] = []
+        # Accept fuzzy matches if at least 4 are valid or can be auto-corrected
+        final_names = valid_names + [v for k, v in suggestions.items() if v]
+        if len(final_names) < 4:
+            return Response({
+                'error': 'Some ingredient names are invalid or missing.',
+                'valid_ingredients': valid_names,
+                'suggestions': suggestions
+            }, status=400)
+        # Use final_names for the rest of the logic
+        lower_names = [n.lower() for n in final_names]
         # Use dynamic bad ingredient logic
         bad_pairs = get_bad_ingredient_pairs()
         bad_triplets = get_bad_ingredient_triplets()
@@ -63,9 +104,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             if set(lower_names) & bad_set:
                 return Response({'message': f'This app cannot suggest meals with {category} items: {", ".join(set(lower_names) & bad_set)}.'}, status=200)
         # Get ingredient IDs from names
-        ingredients = Ingredient.objects.filter(name__in=ingredient_names)
-        if ingredients.count() < 4:
-            return Response({'error': 'Some ingredient names are invalid or missing.'}, status=400)
+        ingredients = Ingredient.objects.filter(name__in=final_names)
         ingredient_ids = list(ingredients.values_list('id', flat=True))
         recipes = Recipe.objects.annotate(
             matched_ingredients=Count(
@@ -74,7 +113,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 distinct=True
             )
         ).filter(matched_ingredients__gte=1)  # Suggest recipes with at least 1 matching ingredient
-        suggestions = []
+        suggestions_list = []
         ingredient_substitutions = get_ingredient_substitutions()
         for recipe in recipes:
             recipe_ingredient_names = set([n.lower() for n in recipe.ingredients.values_list('name', flat=True)])
@@ -85,24 +124,24 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 if missing in ingredient_substitutions:
                     substitutions[missing] = ingredient_substitutions[missing]
             if user_ingredient_names.issuperset(recipe_ingredient_names):
-                suggestions.append({
+                suggestions_list.append({
                     'recipe': self.get_serializer(recipe).data,
                     'missing_ingredients': [],
                     'message': 'You have all the ingredients for this meal!',
                     'substitutions': {}
                 })
             elif len(user_ingredient_names & recipe_ingredient_names) >= 4:
-                suggestions.append({
+                suggestions_list.append({
                     'recipe': self.get_serializer(recipe).data,
                     'missing_ingredients': missing_ingredients,
                     'message': f"You are missing the following ingredients to prepare this meal: {', '.join(missing_ingredients)}. Please add or purchase them.",
                     'substitutions': substitutions
                 })
-        if not suggestions:
+        if not suggestions_list:
             return Response({'message': 'No recipes found that contain all the provided ingredients.'}, status=200)
         # Analytics: Log the query (for demonstration, print to console)
-        print(f"[Analytics] User ingredients: {ingredient_names} | Suggestions: {len(suggestions)}")
-        return Response({'suggested_recipes': suggestions, 'info': 'Recipes are sorted by best match.'})
+        print(f"[Analytics] User ingredients: {ingredient_names} | Suggestions: {len(suggestions_list)}")
+        return Response({'suggested_recipes': suggestions_list, 'info': 'Recipes are sorted by best match.'})
 
     @action(detail=True, methods=['post'], url_path='approve', permission_classes=[IsVerifiedContributor])
     def approve_recipe(self, request, pk=None):

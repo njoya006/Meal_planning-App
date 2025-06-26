@@ -52,7 +52,7 @@ class RecipeAdmin(admin.ModelAdmin):
     # Fieldsets can group fields for better organization
     fieldsets = (
         (None, {
-            'fields': ('title', 'description', 'instructions', 'contributor', 'approved', 'categories', 'cuisines', 'tags', 'difficulty', 'source')
+            'fields': ('title', 'description', 'instructions', 'contributor', 'approved', 'is_active', 'categories', 'cuisines', 'tags', 'difficulty', 'source')
         }),
         ('Details', {
             'fields': ('prep_time', 'cook_time', 'servings'),
