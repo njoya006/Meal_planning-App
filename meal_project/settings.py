@@ -34,11 +34,7 @@ CSRF_COOKIE_SAMESITE = 'Lax'  # Allow cross-site requests for development
 CSRF_USE_SESSIONS = False  # Use cookies instead of sessions for CSRF
 CSRF_COOKIE_AGE = 31449600  # 1 year
 
-ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
-    'njoya.pythonanywhere.com',
-]
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
