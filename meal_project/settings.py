@@ -23,7 +23,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-fpz@@et1*1%$_@(chq^*%tcfg#4m__11+8u(_u6!!22-1@&f#o'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 # CSRF Configuration
 CSRF_COOKIE_NAME = "csrftoken"
@@ -40,6 +40,7 @@ ALLOWED_HOSTS = [
     'njoya.pythonanywhere.com',
     '.pythonanywhere.com',  # Allow any subdomain of pythonanywhere.com
     'https://njoya.pythonanywhere.com',
+    
 ]
 
 
