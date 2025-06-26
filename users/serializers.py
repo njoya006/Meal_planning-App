@@ -169,7 +169,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     """Serializer for user profile display."""
     
     username = serializers.CharField(read_only=True)
-    profile_photo = serializers.ImageField(read_only=True)
+    profile_photo = serializers.SerializerMethodField()
     dietary_preferences = serializers.SerializerMethodField()
 
     class Meta:
@@ -179,6 +179,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'is_verified_contributor', 'phone_number', 'date_of_birth',
             'location', 'basic_ingredients', 'dietary_preferences', 'profile_photo'
         ]
+
+    def get_profile_photo(self, obj):
+        """Return the full URL for the profile photo."""
+        if obj.profile_photo:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.profile_photo.url)
+            else:
+                return obj.profile_photo.url
+        return None
 
     def get_dietary_preferences(self, obj):
         """Return dietary preferences as a list."""

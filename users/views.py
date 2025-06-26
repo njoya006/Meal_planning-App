@@ -55,7 +55,7 @@ class UserProfileView(APIView):
 
     def get(self, request):
         # Use the full UserProfileSerializer to include all fields (username, profile_photo, etc.)
-        serializer = UserProfileSerializer(request.user)
+        serializer = UserProfileSerializer(request.user, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def put(self, request):
@@ -74,7 +74,7 @@ class UserProfileView(APIView):
                 request.user.basic_ingredients = basic_ingredients
                 request.user.save()
             # Return the full profile with all fields
-            full_serializer = UserProfileSerializer(request.user)
+            full_serializer = UserProfileSerializer(request.user, context={'request': request})
             return Response(full_serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -94,7 +94,7 @@ class UserProfileView(APIView):
                 request.user.basic_ingredients = basic_ingredients
                 request.user.save()
             # Return the full profile with all fields
-            full_serializer = UserProfileSerializer(request.user)
+            full_serializer = UserProfileSerializer(request.user, context={'request': request})
             return Response(full_serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross-Origin Profile Photo Debug Tool</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        button {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin: 5px;
+        }
+        .btn-success { background: linear-gradient(135deg, #28a745, #1e7e34); }
+        .btn-warning { background: linear-gradient(135deg, #ffc107, #e0a800); }
+        .log {
+            background: #1e1e1e;
+            color: #e1e1e1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .log-success { color: #4CAF50; }
+        .log-error { color: #f44336; }
+        .log-info { color: #2196F3; }
+        .log-warning { color: #ff9800; }
+        img {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 8px;
+            margin: 10px;
+            border: 2px solid #ddd;
+        }
+        .url-input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 Cross-Origin Profile Photo Debug Tool</h1>
+        <p>Testing image access from hosted frontend to backend</p>
+        
+        <div>
+            <label>Backend URL:</label>
+            <input type="text" id="backend-url" class="url-input" value="https://njoya.pythonanywhere.com" placeholder="Enter your backend URL">
+        </div>
+        
+        <button onclick="testCORS()">🔗 Test CORS Configuration</button>
+        <button onclick="testMediaAPI()">📁 Test Media API</button>
+        <button onclick="testUserProfile()" class="btn-success">👤 Test User Profile</button>
+        <button onclick="testDirectImages()" class="btn-warning">🖼️ Test Direct Image Access</button>
+        <button onclick="clearLog()">🧹 Clear Log</button>
+    </div>
+    
+    <div class="container">
+        <h2>Debug Results</h2>
+        <div id="debug-log" class="log">Ready to test cross-origin image access...\n</div>
+        <div id="image-display"></div>
+    </div>
+
+    <script>
+        function getBackendURL() {
+            return document.getElementById('backend-url').value.trim();
+        }
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('debug-log');
+            const colorClass = `log-${type}`;
+            logElement.innerHTML += `<span class="${colorClass}">[${timestamp}] ${message}</span>\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function clearLog() {
+            document.getElementById('debug-log').innerHTML = 'Log cleared...\n';
+            document.getElementById('image-display').innerHTML = '';
+            log(`Testing with backend: ${getBackendURL()}`, 'info');
+        }
+        
+        async function testCORS() {
+            log('� Testing CORS configuration...', 'info');
+            const backendURL = getBackendURL();
+            
+            try {
+                const response = await fetch(`${backendURL}/api/test-cors/`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'omit',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Origin': window.location.origin
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ CORS test successful', 'success');
+                    log(`Base URL: ${data.base_url}`, 'info');
+                    log(`Media URL: ${data.media_url}`, 'info');
+                    
+                    if (data.sample_media_urls) {
+                        log('📝 Sample media URLs:', 'info');
+                        data.sample_media_urls.forEach(url => {
+                            log(`  - ${url}`, 'info');
+                        });
+                    }
+                } else {
+                    log(`❌ CORS test failed: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ CORS test error: ${error.message}`, 'error');
+                log('💡 This might indicate CORS is not properly configured', 'warning');
+            }
+        }
+        
+        async function testMediaAPI() {
+            log('📁 Testing media API endpoint...', 'info');
+            const backendURL = getBackendURL();
+            
+            try {
+                const response = await fetch(`${backendURL}/api/test-media/`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ Media API test successful', 'success');
+                    log(`Total files found: ${data.total_files}`, 'info');
+                    
+                    if (data.available_files && data.available_files.length > 0) {
+                        log('📸 Available profile photos:', 'info');
+                        data.available_files.forEach(file => {
+                            log(`  - ${file.filename}: ${file.url}`, 'info');
+                            
+                            // Try to load each image
+                            setTimeout(() => testImageLoad(file.url, file.filename), 100);
+                        });
+                    } else {
+                        log('⚠️ No profile photos found', 'warning');
+                    }
+                } else {
+                    log(`❌ Media API test failed: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Media API error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testUserProfile() {
+            log('👤 Testing user profile API...', 'info');
+            const backendURL = getBackendURL();
+            
+            try {
+                const response = await fetch(`${backendURL}/api/users/profile/`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const userData = await response.json();
+                    log('✅ User profile API accessible', 'success');
+                    log(`Username: ${userData.username}`, 'info');
+                    
+                    if (userData.profile_photo) {
+                        log(`Profile photo URL: ${userData.profile_photo}`, 'info');
+                        testImageLoad(userData.profile_photo, 'User Profile Photo');
+                    } else {
+                        log('⚠️ No profile photo in user data', 'warning');
+                    }
+                } else if (response.status === 401) {
+                    log('⚠️ User not authenticated (this is expected)', 'warning');
+                    log('💡 To test with authentication, log in to Django admin first', 'info');
+                } else {
+                    log(`❌ Profile API failed: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Profile API error: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testDirectImages() {
+            log('�️ Testing direct image access...', 'info');
+            const backendURL = getBackendURL();
+            
+            const testImages = [
+                '/media/profile_photos/image.png',
+                '/media/profile_photos/image_3GsmtdM.png',
+                '/media/profile_photos/image_FCThDmG.png'
+            ];
+            
+            for (const imagePath of testImages) {
+                const fullURL = backendURL + imagePath;
+                log(`Testing: ${fullURL}`, 'info');
+                
+                try {
+                    const response = await fetch(fullURL, {
+                        method: 'HEAD',
+                        mode: 'cors',
+                        credentials: 'omit'
+                    });
+                    
+                    if (response.ok) {
+                        log(`✅ ${imagePath} is accessible`, 'success');
+                        testImageLoad(fullURL, imagePath);
+                    } else {
+                        log(`❌ ${imagePath} failed: ${response.status}`, 'error');
+                    }
+                } catch (error) {
+                    log(`❌ Error accessing ${imagePath}: ${error.message}`, 'error');
+                }
+            }
+        }
+        
+        function testImageLoad(url, name) {
+            log(`🖼️ Attempting to load: ${name}`, 'info');
+            
+            const imageDisplay = document.getElementById('image-display');
+            const container = document.createElement('div');
+            container.style.margin = '10px';
+            container.style.display = 'inline-block';
+            
+            const img = document.createElement('img');
+            img.src = url;
+            img.crossOrigin = 'anonymous';  // Test with CORS
+            
+            const label = document.createElement('div');
+            label.textContent = name;
+            label.style.textAlign = 'center';
+            label.style.fontSize = '12px';
+            label.style.marginTop = '5px';
+            
+            img.onload = () => {
+                log(`✅ Successfully loaded: ${name}`, 'success');
+                img.style.border = '2px solid #4CAF50';
+            };
+            
+            img.onerror = () => {
+                log(`❌ Failed to load: ${name}`, 'error');
+                img.style.border = '2px solid #f44336';
+                img.alt = 'Failed to load';
+            };
+            
+            container.appendChild(img);
+            container.appendChild(label);
+            imageDisplay.appendChild(container);
+        }
+        
+        // Initialize
+        window.onload = function() {
+            log('🚀 Cross-Origin Profile Photo Debug Tool initialized', 'success');
+            log(`Current origin: ${window.location.origin}`, 'info');
+            log(`Testing backend: ${getBackendURL()}`, 'info');
+            log('Ready to test cross-origin image access', 'info');
+        };
+    </script>
+</body>
+</html>

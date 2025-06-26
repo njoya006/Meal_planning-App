@@ -39,8 +39,6 @@ ALLOWED_HOSTS = [
     'localhost',
     'njoya.pythonanywhere.com',
     '.pythonanywhere.com',  # Allow any subdomain of pythonanywhere.com
-    'https://njoya.pythonanywhere.com',
-    
 ]
 
 
@@ -67,10 +65,11 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'meal_project.middleware.MediaFilesMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -172,6 +171,11 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# Configure WhiteNoise to serve media files in production
+# This is needed for PythonAnywhere and other platforms where you can't use a separate web server for media
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = True
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -199,12 +203,25 @@ CORS_ALLOWED_ORIGINS = [
     "https://njoya.pythonanywhere.com",
 ]
 
+# Alternative: Allow all origins for media files (less secure but works)
+# You can uncomment this if you still have issues
+# CORS_ALLOW_ALL_ORIGINS = True
+
 CORS_ALLOW_HEADERS = [
     'authorization',
     'content-type',
     'x-csrftoken',
     'x-requested-with',
-    'referer'
+    'referer',
+    'accept',
+    'accept-encoding',
+    'accept-language',
+    'access-control-request-headers',
+    'access-control-request-method',
+    'connection',
+    'host',
+    'origin',
+    'user-agent'
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -213,6 +230,16 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Allow all HTTP methods for API endpoints
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 
 # Add CSRF trusted origins for frontend
 CSRF_TRUSTED_ORIGINS = [
@@ -229,6 +256,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "https://frontendsmo.vercel.app",
     "https://njoya.pythonanywhere.com",
+    "https://*.vercel.app",  # Allow any Vercel deployment
 ]
 
 SITE_ID = 1
