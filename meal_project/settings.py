@@ -39,6 +39,7 @@ ALLOWED_HOSTS = [
     'localhost',
     'njoya.pythonanywhere.com',
     '.pythonanywhere.com',  # Allow any subdomain of pythonanywhere.com
+    'https://njoya.pythonanywhere.com',
 ]
 
 
