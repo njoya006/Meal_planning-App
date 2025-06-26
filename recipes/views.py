@@ -172,18 +172,105 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
-class IngredientViewSet(viewsets.ModelViewSet):
+class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
+    """ViewSet for ingredient search and discovery."""
     queryset = Ingredient.objects.all().order_by('name')
     serializer_class = IngredientSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-    def perform_create(self, serializer):
-        user = self.request.user if self.request.user.is_authenticated else None
-        serializer.save(user=user)
+    @method_decorator(cache_page(60 * 10), name='list')  # Cache for 10 minutes
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
 
-    def perform_update(self, serializer):
-        user = self.request.user if self.request.user.is_authenticated else None
-        serializer.save(user=user)
+    @action(detail=False, methods=['get'], url_path='search')
+    def search(self, request):
+        """Search ingredients by name with autocomplete functionality."""
+        query = request.query_params.get('q', '').strip()
+        
+        if not query:
+            return Response({'error': 'Query parameter "q" is required.'}, status=400)
+        
+        if len(query) < 2:
+            return Response({'error': 'Query must be at least 2 characters long.'}, status=400)
+        
+        # Search for ingredients that contain the query (case-insensitive)
+        ingredients = Ingredient.objects.filter(
+            name__icontains=query
+        ).order_by('name')[:20]  # Limit to 20 results
+        
+        serializer = self.get_serializer(ingredients, many=True)
+        
+        return Response({
+            'ingredients': serializer.data,
+            'count': ingredients.count(),
+            'query': query
+        })
+    
+    @action(detail=False, methods=['get'], url_path='suggestions')
+    def suggestions(self, request):
+        """Get ingredient suggestions based on partial input."""
+        query = request.query_params.get('q', '').strip().lower()
+        
+        if not query:
+            return Response({'error': 'Query parameter "q" is required.'}, status=400)
+        
+        # Get ingredients that start with the query
+        starts_with = Ingredient.objects.filter(
+            name__istartswith=query
+        ).order_by('name')[:10]
+        
+        # Get ingredients that contain the query but don't start with it
+        contains = Ingredient.objects.filter(
+            name__icontains=query
+        ).exclude(
+            name__istartswith=query
+        ).order_by('name')[:10]
+        
+        # Combine results, prioritizing "starts with" matches
+        suggestions = list(starts_with) + list(contains)
+        
+        serializer = self.get_serializer(suggestions, many=True)
+        
+        return Response({
+            'suggestions': serializer.data,
+            'count': len(suggestions),
+            'query': query
+        })
+    
+    @action(detail=False, methods=['get'], url_path='popular')
+    def popular(self, request):
+        """Get most commonly used ingredients."""
+        # Get ingredients ordered by how many recipes use them
+        popular_ingredients = Ingredient.objects.annotate(
+            recipe_count=Count('recipes_used_in')
+        ).filter(
+            recipe_count__gt=0
+        ).order_by('-recipe_count')[:30]
+        
+        serializer = self.get_serializer(popular_ingredients, many=True)
+        
+        return Response({
+            'popular_ingredients': serializer.data,
+            'count': popular_ingredients.count()
+        })
+    
+    @action(detail=False, methods=['get'], url_path='basic')
+    def basic_ingredients(self, request):
+        """Get basic ingredients that users commonly have."""
+        from .models import BasicIngredient
+        
+        region = request.query_params.get('region', 'global')
+        
+        # Get basic ingredients for the specified region
+        basic_ingredients = BasicIngredient.objects.filter(
+            region=region
+        ).order_by('name')
+        
+        return Response({
+            'basic_ingredients': [{'name': bi.name} for bi in basic_ingredients],
+            'region': region,
+            'count': basic_ingredients.count()
+        })
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all().order_by('name')

@@ -43,10 +43,13 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
         fields = ['ingredient', 'ingredient_name', 'quantity', 'unit', 'preparation']
 
     def validate(self, data):
-        """Validate and create/get ingredient."""
-        name = data.get('ingredient_name', '').strip().lower()
+        """Validate and create/get ingredient with smart suggestions."""
+        name = data.get('ingredient_name', '').strip()
         if not name:
             raise serializers.ValidationError({'ingredient_name': 'Ingredient name is required.'})
+        
+        # Clean the name
+        clean_name = name.lower()
         
         # Get user from context if available
         user = None
@@ -55,9 +58,36 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
             if hasattr(request, 'user') and request.user.is_authenticated:
                 user = request.user
         
-        # Try to get existing ingredient, create if it doesn't exist
+        # First, try exact match (case-insensitive)
+        try:
+            ingredient = Ingredient.objects.get(name__iexact=clean_name)
+            data['ingredient'] = ingredient
+            return data
+        except Ingredient.DoesNotExist:
+            pass
+        
+        # Try to find similar ingredients for suggestions
+        from difflib import get_close_matches
+        existing_names = list(Ingredient.objects.values_list('name', flat=True))
+        existing_names_lower = [n.lower() for n in existing_names]
+        
+        close_matches = get_close_matches(clean_name, existing_names_lower, n=3, cutoff=0.7)
+        
+        if close_matches:
+            # Find the original names for the close matches
+            suggestions = []
+            for match in close_matches:
+                original_name = existing_names[existing_names_lower.index(match)]
+                suggestions.append(original_name)
+            
+            # For now, create the ingredient anyway but could show suggestions to frontend
+            # In a more advanced implementation, you might want to raise a validation error
+            # with suggestions for the frontend to handle
+            pass
+        
+        # Create new ingredient if it doesn't exist
         ingredient, created = Ingredient.objects.get_or_create(
-            name__iexact=name,
+            name__iexact=clean_name,
             defaults={
                 'name': name.title(),  # Store with proper capitalization
                 'created_by': user,
@@ -156,7 +186,8 @@ class RecipeSerializer(serializers.ModelSerializer):
             recipe.tags.set(tags)
         
         # Process ingredients with proper context
-        for recipe_ingredient_data in ingredients_data:
+        ingredient_errors = []
+        for i, recipe_ingredient_data in enumerate(ingredients_data):
             # Create individual RecipeIngredient serializer with context
             ingredient_serializer = RecipeIngredientSerializer(
                 data=recipe_ingredient_data, 
@@ -176,11 +207,22 @@ class RecipeSerializer(serializers.ModelSerializer):
                     ingredient=ingredient, 
                     **validated_ingredient_data
                 )
+            else:
+                # Collect ingredient validation errors
+                ingredient_errors.append(f"Ingredient {i+1}: {ingredient_serializer.errors}")
+        
+        # If there were ingredient validation errors, raise them
+        if ingredient_errors:
+            # Delete the recipe since ingredient creation failed
+            recipe.delete()
+            raise serializers.ValidationError({
+                'ingredients': f"Ingredient validation failed: {'; '.join(ingredient_errors)}"
+            })
         
         return recipe
 
     def update(self, instance, validated_data):
-        ingredients_data = validated_data.pop('recipeingredient_set', None)
+        ingredients_data = validated_data.pop('ingredients_data', None)
         category_names = validated_data.pop('category_names', None)
         cuisine_names = validated_data.pop('cuisine_names', None)
         tag_names = validated_data.pop('tag_names', None)
@@ -212,7 +254,8 @@ class RecipeSerializer(serializers.ModelSerializer):
             instance.recipeingredient_set.all().delete()
             
             # Create new ingredient relationships
-            for recipe_ingredient_data in ingredients_data:
+            ingredient_errors = []
+            for i, recipe_ingredient_data in enumerate(ingredients_data):
                 # Create individual RecipeIngredient serializer with context
                 ingredient_serializer = RecipeIngredientSerializer(
                     data=recipe_ingredient_data, 
@@ -231,9 +274,14 @@ class RecipeSerializer(serializers.ModelSerializer):
                         ingredient=ingredient, 
                         **validated_ingredient_data
                     )
-                    print(f"Updated RecipeIngredient: {instance.title} -> {ingredient.name}")
                 else:
-                    print(f"Ingredient validation failed during update: {ingredient_serializer.errors}")
+                    ingredient_errors.append(f"Ingredient {i+1}: {ingredient_serializer.errors}")
+            
+            # If there were ingredient validation errors, raise them
+            if ingredient_errors:
+                raise serializers.ValidationError({
+                    'ingredients': f"Ingredient validation failed: {'; '.join(ingredient_errors)}"
+                })
         
         return instance
 
