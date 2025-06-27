@@ -17,6 +17,8 @@ debug_*.py
 *_test.py
 add_essential_ingredients.py
 show_ingredients_guide.py
+debug.log
+
 
 # Documentation files (optional - remove this line if you want to commit docs)
 INGREDIENT_DISCOVERY_GUIDE.md

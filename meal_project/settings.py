@@ -23,12 +23,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-fpz@@et1*1%$_@(chq^*%tcfg#4m__11+8u(_u6!!22-1@&f#o'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True  # Temporarily set to True to see actual errors
 
 # CSRF Configuration
 CSRF_COOKIE_NAME = "csrftoken"
 CSRF_HEADER_NAME = "X-CSRFToken"
-CSRF_COOKIE_SECURE = True  # Set to True in production with HTTPS
+CSRF_COOKIE_SECURE = False  # Set to False for HTTP development, True for HTTPS production
 CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript access to CSRF cookie
 CSRF_COOKIE_SAMESITE = 'Lax'  # Allow cross-site requests for development
 CSRF_USE_SESSIONS = False  # Use cookies instead of sessions for CSRF
@@ -39,6 +39,7 @@ ALLOWED_HOSTS = [
     'localhost',
     'njoya.pythonanywhere.com',
     '.pythonanywhere.com',  # Allow any subdomain of pythonanywhere.com
+    'testserver',  # For Django test client
 ]
 
 
