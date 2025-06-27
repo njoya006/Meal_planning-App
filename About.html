@@ -1,0 +1,557 @@
+<style>
+    /* About Page Styles */
+.about-page {
+    padding-top: 80px;
+}
+
+.about-hero {
+    background-color: var(--primary-color);
+    color: white;
+    text-align: center;
+    padding: 80px 0;
+    margin-bottom: 60px;
+}
+
+.about-hero h1 {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.about-hero p {
+    font-size: 20px;
+    opacity: 0.9;
+}
+
+.mission-section {
+    padding: 60px 0;
+}
+
+.mission-content {
+    display: flex;
+    align-items: center;
+    gap: 50px;
+}
+
+.mission-text {
+    flex: 1;
+}
+
+.mission-text h2 {
+    font-size: 36px;
+    margin-bottom: 25px;
+    color: var(--dark-color);
+}
+
+.mission-text p {
+    font-size: 18px;
+    line-height: 1.6;
+    color: var(--gray-color);
+    margin-bottom: 20px;
+}
+
+.mission-image {
+    flex: 1;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--box-shadow);
+}
+
+.mission-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.features-section {
+    padding: 80px 0;
+    background-color: #f9f9f9;
+}
+
+.features-section h2 {
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 60px;
+    color: var(--dark-color);
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+}
+
+.feature-card {
+    background-color: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: var(--box-shadow);
+    text-align: center;
+}
+
+.feature-icon {
+    font-size: 40px;
+    color: var(--primary-color);
+    margin-bottom: 20px;
+}
+
+.feature-card h3 {
+    font-size: 22px;
+    margin-bottom: 15px;
+}
+
+.feature-card p {
+    color: var(--gray-color);
+    font-size: 16px;
+}
+
+.team-section {
+    padding: 80px 0;
+}
+
+.team-section h2 {
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 60px;
+    color: var(--dark-color);
+}
+
+.team-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 30px;
+}
+
+.team-member {
+    text-align: center;
+}
+
+.member-image {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin: 0 auto 20px;
+    border: 3px solid var(--primary-color);
+}
+
+.member-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.team-member h3 {
+    font-size: 20px;
+    margin-bottom: 5px;
+}
+
+.role {
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.bio {
+    color: var(--gray-color);
+    font-size: 14px;
+}
+
+.testimonials-section {
+    padding: 80px 0;
+    background-color: #f9f9f9;
+}
+
+.testimonials-section h2 {
+    text-align: center;
+    font-size: 36px;
+    margin-bottom: 60px;
+    color: var(--dark-color);
+}
+
+.testimonials-slider {
+    max-width: 800px;
+    margin: 0 auto;
+    position: relative;
+}
+
+.testimonial {
+    background-color: white;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: var(--box-shadow);
+    text-align: center;
+    display: none;
+}
+
+.testimonial.active {
+    display: block;
+}
+
+.testimonial-content p {
+    font-size: 18px;
+    font-style: italic;
+    color: var(--dark-color);
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+.testimonial-author {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.testimonial-author img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    margin-bottom: 15px;
+    object-fit: cover;
+}
+
+.testimonial-author span {
+    font-weight: 600;
+}
+
+.user-type {
+    font-size: 12px;
+    color: var(--gray-color);
+    margin-top: 5px;
+}
+
+.slider-controls {
+    position: absolute;
+    top: 50%;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    transform: translateY(-50%);
+}
+
+.slider-controls button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+
+.slider-controls button:hover {
+    background-color: var(--primary-dark);
+}
+
+.cta-section {
+    padding: 80px 0;
+    text-align: center;
+}
+
+.cta-section h2 {
+    font-size: 36px;
+    margin-bottom: 30px;
+}
+
+.cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.featured-member {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.featured-member .member-image {
+    width: 225px; /* 150px * 1.5 = 225px */
+    height: 225px;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+    .mission-content {
+        flex-direction: column;
+    }
+    
+    .mission-image {
+        order: -1;
+    }
+    
+    .cta-buttons {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .about-hero h1 {
+        font-size: 36px;
+    }
+    
+    .about-hero p {
+        font-size: 18px;
+    }
+    
+    .mission-text h2 {
+        font-size: 28px;
+    }
+    
+    .slider-controls {
+        display: none;
+    }
+}
+</style>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MealMaster - About Us</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <div class="logo">
+                    <a href="index.html">
+                        <i class="fas fa-utensils"></i>
+                        <span>ChopSmo</span>
+                    </a>
+                </div>
+                <ul class="nav-links">
+                    <li><a href="about.html">About</a></li>
+                    <li><a href="Profile.html">Profile</a></li>
+                </ul>
+                <div class="auth-buttons">
+                    <button id="logoutBtn" class="btn btn-outline">Back</button>
+                </div>
+                <div class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="about-page">
+        <section class="about-hero">
+            <div class="container">
+                <h1>Our Story</h1>
+                <p>Helping you eat better, one meal at a time</p>
+            </div>
+        </section>
+
+        <section class="mission-section">
+            <div class="container">
+                <div class="mission-content">
+                    <div class="mission-text">
+                        <h2>Our Mission</h2>
+                        <p>At ChopSmo, we believe healthy eating should be simple, enjoyable, and accessible to everyone. Our mission is to take the stress out of meal planning by providing smart tools that help you create delicious, nutritious meals tailored to your lifestyle.</p>
+                        <p>Founded in 2025 by a team of nutritionists, chefs, and tech enthusiasts, we're passionate about helping people develop sustainable eating habits that last a lifetime.</p>
+                    </div>
+                    <div class="mission-image">
+                        <img src="/Frontend/images/Chicken Chips.jpg" alt="Healthy ingredients">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="features-section">
+            <div class="container">
+                <h2>Why Choose ChopSmo?</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-lightbulb"></i>
+                        </div>
+                        <h3>Smart Planning</h3>
+                        <p>Our algorithm creates personalized meal plans based on your dietary preferences, schedule, and nutritional needs.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-utensils"></i>
+                        </div>
+                        <h3>5,000+ Recipes</h3>
+                        <p>Access our constantly growing database of delicious, dietitian-approved recipes for every taste and occasion.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                        <h3>Smart Meal Plans</h3>
+                        <p>Automatically generate Meal Plan that organize items by category to save you time throughout the week.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-mobile-alt"></i>
+                        </div>
+                        <h3>Always Accessible</h3>
+                        <p>Your meal plans sync across all devices so you always have them when you need them.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="team-section">
+            <div class="container">
+                <h2>Meet The Team</h2>
+                <div class="team-grid">
+                    <div class="team-member">
+                        <div class="member-image">
+                            <img src="/Frontend/images/Njoya.jpg" alt="Njoya Medin">
+                        </div>
+                        <h3>Njoya Medin</h3>
+                        <p class="role">Chief Technology Officer and Backend Developer</p>
+                        <p class="bio">An Engineer with a vision on healthy living and Good Life.</p>
+                    </div>
+                    <div class="team-member">
+                        <div class="member-image">
+                            <img src="/Frontend/images/Pamela.jpg" alt="Beri Pamela">
+                        </div>
+                        <h3>Beri Pamela</h3>
+                        <p class="role">Head of Product</p>
+                        <p class="bio">Product Owner and a developer for the ChopSmo Community</p>
+                    </div>
+                    <div class="team-member">
+                        <div class="member-image">
+                            <img src="/Frontend/images/Precious.jpg" alt="Precious Ngeminang">
+                        </div>
+                        <h3> Ngeminang Precious</h3>
+                        <p class="role">Backend Developer</p>
+                        <p class="bio">Developer striving in the field of Nutrition and good living</p>
+                    </div>
+                    <div class="team-member">
+                        <div class="member-image">
+                            <img src="/Frontend/images/Nicole.jpg" alt="Nicole Sengue">
+                        </div>
+                        <h3>Nicole Sengue</h3>
+                        <p class="role">Frontend Developer</p>
+                        <p class="bio">Frontend developer passionate about health tech.</p>
+                    </div>
+                    <div class="team-member">
+                        <div class="member-image">
+                            <img src="/Frontend/images/Bright.jpg" alt="Herman Bright">
+                        </div>
+                        <h3>Herman Bright</h3>
+                        <p class="role">Lead Frontend Developer</p>
+                        <p class="bio">Creates interactive web pages that tie with users preference and App design.</p>
+                    </div>
+                    <div class="team-member featured-member">
+                        <div class="member-image">
+                            <img src="/Frontend/images/Janice.jpg" alt="Janice Kelly">
+                        </div>
+                        <h3>Janice Kelly</h3>
+                        <p class="role">Scrum Leader</p>
+                        <p class="bio">Designs user-friendly interfaces that make meal planning a breeze.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="testimonials-section">
+            <div class="container">
+                <h2>What Our Users Say</h2>
+                <div class="testimonials-slider">
+                    <div class="testimonial active">
+                        <div class="testimonial-content">
+                            <p>"ChopSmo has completely changed how I approach meal planning. I save time and eat healthier!"</p>
+                            <div class="testimonial-author">
+                                <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="Lisa M.">
+                                <span>Lisa M.</span>
+                                <span class="user-type">Premium Member</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="testimonial">
+                        <div class="testimonial-content">
+                            <p>"As a busy parent, this app has been a lifesaver. The grocery list feature alone is worth it!"</p>
+                            <div class="testimonial-author">
+                                <img src="https://randomuser.me/api/portraits/men/33.jpg" alt="James T.">
+                                <span>James T.</span>
+                                <span class="user-type">Free Member</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="slider-controls">
+                        <button class="slider-prev"><i class="fas fa-chevron-left"></i></button>
+                        <button class="slider-next"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="cta-section">
+            <div class="container">
+                <h2>Ready to Transform Your Meal Planning?</h2>
+                <div class="cta-buttons">
+                    <a href="signup.html" class="btn btn-primary btn-large">Get Started</a>
+                    <a href="MealSuggestion.html" class="btn btn-outline btn-large">Browse Recipes</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+           <div class="container">
+            <div class="footer-content">
+                <div class="footer-about">
+                    <div class="logo">
+                        <i class="fas fa-utensils"></i>
+                        <span>ChopSmo</span>
+                    </div>
+                    <p>Making meal suggestion simple and enjoyable in 2025.</p>
+                    <div class="social-links">
+                        <a href="www.facebook.com"><i class="fab fa-facebook-f"></i></a>
+                        <a href="www.twitter.com"><i class="fab fa-twitter"></i></a>
+                        <a href="www.instagram.com"><i class="fab fa-instagram"></i></a>
+                        <a href="www.pinterest.com"><i class="fab fa-pinterest-p"></i></a>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="SignUp.html">Join</a></li>
+                        <li><a href="Recipes.html">Recipes</a></li>
+                        <li><a href="About.html">About</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h3>Support</h3>
+                    <ul>
+                        <li><a href="FAQ.html">FAQ</a></li>
+                        <li><a href="Contact.html">Contact Us</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                    </ul>
+                </div>
+                <div class="footer-newsletter">
+                    <h3>Newsletter</h3>
+                    <p>Subscribe to get weekly recipe ideas and meal planning tips.</p>
+                    <form class="newsletter-form">
+                        <input type="email" placeholder="Your email address" required>
+                        <button type="submit" class="btn btn-primary">Subscribe</button>
+                    </form>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 ChopSmo. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="about.js"></script>
+</body>
+</html>
