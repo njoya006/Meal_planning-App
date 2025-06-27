@@ -1,0 +1,335 @@
+<style>
+    /* FAQ Page Styles */
+.faq-page {
+    padding: 80px 0;
+}
+
+.faq-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.faq-header h1 {
+    font-size: 36px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.search-faq {
+    max-width: 500px;
+    margin: 0 auto;
+    display: flex;
+}
+
+.search-faq input {
+    flex: 1;
+    padding: 12px 20px;
+    border: 1px solid #ddd;
+    border-radius: 30px 0 0 30px;
+    font-size: 16px;
+}
+
+.search-faq button {
+    border-radius: 0 30px 30px 0;
+    padding: 0 25px;
+}
+
+.faq-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 40px;
+}
+
+.category {
+    padding: 8px 20px;
+    background-color: #f0f0f0;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.category:hover {
+    background-color: #e0e0e0;
+}
+
+.category.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.faq-category {
+    margin-bottom: 50px;
+}
+
+.faq-category h2 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--dark-color);
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.faq-item {
+    margin-bottom: 15px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.faq-question {
+    width: 100%;
+    padding: 18px 25px;
+    text-align: left;
+    background-color: #f9f9f9;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.faq-question:hover {
+    background-color: #f0f0f0;
+}
+
+.faq-question i {
+    transition: transform 0.3s ease;
+}
+
+.faq-question.active i {
+    transform: rotate(180deg);
+}
+
+.faq-answer {
+    padding: 0 25px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    background-color: white;
+}
+
+.faq-answer p {
+    padding: 5px 0 20px;
+    color: var(--gray-color);
+    line-height: 1.6;
+}
+
+.faq-item.active .faq-answer {
+    max-height: 300px;
+    padding: 0 25px 10px;
+}
+
+.contact-support {
+    text-align: center;
+    margin-top: 60px;
+    padding: 40px;
+    background-color: #f9f9f9;
+    border-radius: 10px;
+}
+
+.contact-support h2 {
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+
+.contact-support p {
+    color: var(--gray-color);
+    margin-bottom: 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .faq-header h1 {
+        font-size: 28px;
+    }
+    
+    .faq-category h2 {
+        font-size: 20px;
+    }
+    
+    .faq-question {
+        padding: 15px 20px;
+        font-size: 15px;
+    }
+}
+</style>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MealMaster - FAQs</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <!-- Your existing header from index.html -->
+    </header>
+
+    <main class="faq-page">
+        <div class="container">
+            <section class="faq-header">
+                <h1><i class="fas fa-question-circle"></i> Frequently Asked Questions</h1>
+                <div class="search-faq">
+                    <input type="text" id="faqSearch" placeholder="Search FAQs...">
+                    <button class="btn btn-primary"><i class="fas fa-search"></i></button>
+                </div>
+            </section>
+
+            <section class="faq-categories">
+                <div class="category active" data-category="all">All Topics</div>
+                <div class="category" data-category="account">Account</div>
+                <div class="category" data-category="mealplan">Meal Planning</div>
+                <div class="category" data-category="diet">Dietary Needs</div>
+                <div class="category" data-category="grocery">Grocery Lists</div>
+            </section>
+
+            <section class="faq-container">
+                <!-- Account FAQs -->
+                <div class="faq-category" data-category="account">
+                    <h2><i class="fas fa-user-circle"></i> Account & Setup</h2>
+                    
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            How do I create an account?
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="faq-answer">
+                            <p>You can sign up using your email or social media accounts. Go to "Sign Up" and follow the prompts. We only require your email and a password to get started.</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            Can I use the app without an account?
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="faq-answer">
+                            <p>You can browse recipes without an account, but you'll need to sign up to save meal plans, access grocery lists, and use premium features.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Meal Planning FAQs -->
+                <div class="faq-category" data-category="mealplan">
+                    <h2><i class="fas fa-calendar-alt"></i> Meal Planning</h2>
+                    
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            How does the meal planner work?
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="faq-answer">
+                            <p>Our smart algorithm suggests meals based on your dietary preferences, available cooking time, and ingredients you already have. You can customize any suggestion with one click.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dietary FAQs -->
+                <div class="faq-category" data-category="diet">
+                    <h2><i class="fas fa-heart"></i> Dietary Needs</h2>
+                    
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            Can I filter recipes for allergies?
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="faq-answer">
+                            <p>Yes! Set your dietary restrictions in <strong>Profile > Dietary Preferences</strong> to automatically filter recipes. We track 12 common allergens including nuts, dairy, and gluten.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grocery FAQs -->
+                <div class="faq-category" data-category="grocery">
+                    <h2><i class="fas fa-shopping-basket"></i> Grocery Lists</h2>
+                    
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            Does the app generate shopping lists?
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="faq-answer">
+                            <p>Yes! Any saved meal plan automatically creates an organized grocery list sorted by category (produce, dairy, etc.). Lists sync across all your devices in real-time.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="contact-support">
+                <h2>Still need help?</h2>
+                <p>Our support team is available 24/7</p>
+                <a href="contact.html" class="btn btn-primary">
+                    <i class="fas fa-headset"></i> Contact Support
+                </a>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+           <div class="container">
+            <div class="footer-content">
+                <div class="footer-about">
+                    <div class="logo">
+                        <i class="fas fa-utensils"></i>
+                        <span>ChopSmo</span>
+                    </div>
+                    <p>Making meal suggestion simple and enjoyable in 2025.</p>
+                    <div class="social-links">
+                        <a href="www.facebook.com"><i class="fab fa-facebook-f"></i></a>
+                        <a href="www.twitter.com"><i class="fab fa-twitter"></i></a>
+                        <a href="www.instagram.com"><i class="fab fa-instagram"></i></a>
+                        <a href="www.pinterest.com"><i class="fab fa-pinterest-p"></i></a>
+                    </div>
+                </div>
+                <div class="footer-links">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="SignUp.html">Join</a></li>
+                        <li><a href="Recipes.html">Recipes</a></li>
+                        <li><a href="About.html">About</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h3>Support</h3>
+                    <ul>
+                        <li><a href="FAQ.html">FAQ</a></li>
+                        <li><a href="#">Contact Us</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                    </ul>
+                </div>
+                <div class="footer-newsletter">
+                    <h3>Newsletter</h3>
+                    <p>Subscribe to get weekly recipe ideas and meal planning tips.</p>
+                    <form class="newsletter-form">
+                        <input type="email" placeholder="Your email address" required>
+                        <button type="submit" class="btn btn-primary">Subscribe</button>
+                    </form>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 ChopSmo. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="faq.js"></script>
+</body>
+</html>
