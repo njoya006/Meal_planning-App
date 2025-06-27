@@ -1,0 +1,530 @@
+<style>
+    /* Meal Suggestions Page */
+.meal-suggestions {
+    padding: 100px 0 40px;
+}
+
+.suggestions-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.suggestions-header h1 {
+    font-size: 36px;
+    margin-bottom: 10px;
+}
+
+.suggestions-header p {
+    color: var(--gray-color);
+    font-size: 18px;
+    margin-bottom: 30px;
+}
+
+.filter-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    justify-content: center;
+    align-items: flex-end;
+    margin-top: 30px;
+}
+
+.filter-group {
+    text-align: left;
+}
+
+.filter-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--dark-color);
+    font-size: 14px;
+}
+
+.filter-group select {
+    padding: 10px 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    min-width: 180px;
+    background-color: white;
+    cursor: pointer;
+}
+
+.filter-group select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+}
+
+/* Search Section Styles */
+.search-section {
+    margin: 30px 0;
+}
+
+.search-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.search-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.search-bar input {
+    flex: 1;
+    padding: 12px 20px;
+    border: 1px solid #ddd;
+    border-radius: 30px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.search-bar input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+}
+
+.search-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+
+.search-tag {
+    background-color: rgba(76, 175, 80, 0.1);
+    color: var(--primary-dark);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.remove-tag {
+    background: none;
+    border: none;
+    color: var(--primary-dark);
+    cursor: pointer;
+    padding: 0;
+    font-size: 12px;
+}
+
+/* Enhanced meal card for search results */
+.meal-card.search-result {
+    border: 2px solid var(--primary-color);
+    position: relative;
+}
+
+.meal-card.search-result::after {
+    content: "Search Match";
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: var(--primary-color);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* Search highlight */
+.highlight {
+    background-color: #fffacd;
+    padding: 0 2px;
+    border-radius: 3px;
+}
+
+#applyFilters, #shuffle {
+    height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.suggestions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 25px;
+    margin-bottom: 50px;
+}
+
+.meal-card {
+    background-color: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.meal-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+.meal-image {
+    height: 200px;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.meal-badge {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background-color: var(--primary-color);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.meal-content {
+    padding: 20px;
+}
+
+.meal-title {
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: var(--dark-color);
+}
+
+.meal-description {
+    color: var(--gray-color);
+    font-size: 14px;
+    margin-bottom: 15px;
+    line-height: 1.5;
+}
+
+.meal-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--gray-color);
+    margin-bottom: 20px;
+}
+
+.meal-meta span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.meal-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.meal-actions button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.btn-save {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-save:hover {
+    background-color: var(--primary-dark);
+}
+
+.btn-view {
+    background-color: #f0f0f0;
+    color: var(--dark-color);
+}
+
+.btn-view:hover {
+    background-color: #e0e0e0;
+}
+
+.nutrition-info {
+    margin-top: 60px;
+}
+
+.nutrition-info h2 {
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 28px;
+    color: var(--dark-color);
+}
+
+.nutrition-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.nutrition-card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.nutrition-icon {
+    width: 50px;
+    height: 50px;
+    background-color: rgba(76, 175, 80, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: var(--primary-color);
+}
+
+.nutrition-content h3 {
+    font-size: 16px;
+    margin-bottom: 5px;
+    color: var(--gray-color);
+}
+
+.nutrition-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--dark-color);
+}
+
+.nutrition-value span {
+    font-size: 14px;
+    font-weight: normal;
+    color: var(--gray-color);
+}
+
+.nutrition-goal {
+    font-size: 12px;
+    color: var(--gray-color);
+}
+
+.loading-spinner {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid rgba(76, 175, 80, 0.2);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .filter-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-group select {
+        width: 100%;
+    }
+    
+    #applyFilters, #shuffle {
+        width: 100%;
+    }
+    
+    .suggestions-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MealMaster - Meal Suggestions</title>
+    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <div class="logo">
+                    <a href="index.html">
+                        <i class="fas fa-utensils"></i>
+                        <span>ChopSmo</span>
+                    </a>
+                </div>
+                <ul class="nav-links">
+                    <li><a href="dashboard.html">Dashboard</a></li>
+                    <li><a href="MealPlans.html">Meal Plans</a></li>
+                    <li><a href="Recipes.html">Recipes</a></li>
+                    <li><a href="profile.html">Profile</a></li>
+                </ul>
+                <div class="auth-buttons">
+                    <button id="logoutBtn" class="btn btn-outline">Back</button>
+                </div>
+                <div class="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="meal-suggestions">
+        <div class="container">
+            <section class="suggestions-header">
+                <h1>Discover Your Next Meal</h1>
+                <p>Get personalized recommendations based on your available Ingredients</p>
+                
+                <div class="filter-controls">
+                    <div class="filter-group">
+                        <label for="meal-type"><i class="fas fa-utensils"></i> Meal Type</label>
+                        <select id="meal-type">
+                            <option value="all">All Types</option>
+                            <option value="breakfast">Breakfast</option>
+                            <option value="lunch">Lunch</option>
+                            <option value="dinner">Dinner</option>
+                            <option value="snack">Snacks</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="cuisine"><i class="fas fa-globe-americas"></i> Cuisine</label>
+                        <select id="cuisine">
+                            <option value="all">All Cuisines</option>
+                            <option value="italian">Italian</option>
+                            <option value="mexican">Mexican</option>
+                            <option value="asian">Asian</option>
+                            <option value="american">American</option>
+                            <option value="mediterranean">Mediterranean</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label for="cooking-time"><i class="fas fa-clock"></i> Cooking Time</label>
+                        <select id="cooking-time">
+                            <option value="all">Any Time</option>
+                            <option value="15">Under 15 mins</option>
+                            <option value="30">Under 30 mins</option>
+                            <option value="60">Under 1 hour</option>
+                        </select>
+                    </div>
+                    
+                    <button id="applyFilters" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Apply Filters
+                    </button>
+                    
+                    <button id="shuffle" class="btn btn-outline">
+                        <i class="fas fa-random"></i> Shuffle
+                    </button>
+                </div>
+            </section>
+
+            <!-- Add this search bar section below the filter controls -->
+<section class="search-section">
+    <div class="search-container">
+        <div class="search-bar">
+            <input type="text" id="mealSearch" placeholder="Search for meals, ingredients, or cuisines...">
+            <button id="searchButton" class="btn btn-primary">
+                <i class="fas fa-search"></i> Search
+            </button>
+        </div>
+        <div class="search-tags">
+            <span class="search-tag">Quick <button class="remove-tag"><i class="fas fa-times"></i></button></span>
+            <span class="search-tag">Vegetarian <button class="remove-tag"><i class="fas fa-times"></i></button></span>
+            <span class="search-tag">Under 30 mins <button class="remove-tag"><i class="fas fa-times"></i></button></span>
+        </div>
+    </div>
+
+</section>
+            <section class="suggestions-grid">
+                <!-- Meal cards will be dynamically inserted here -->
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <p>Finding delicious meals for you...</p>
+                </div>
+            </section>
+
+            <section class="nutrition-info">
+                <h2><i class="fas fa-chart-pie"></i> Weekly Nutrition Overview</h2>
+                <div class="nutrition-cards">
+                    <div class="nutrition-card">
+                        <div class="nutrition-icon">
+                            <i class="fas fa-fire"></i>
+                        </div>
+                        <div class="nutrition-content">
+                            <h3>Calories</h3>
+                            <p class="nutrition-value">2,400 <span>kcal</span></p>
+                            <p class="nutrition-goal">Goal: 2,500 kcal</p>
+                        </div>
+                    </div>
+                    
+                    <div class="nutrition-card">
+                        <div class="nutrition-icon">
+                            <i class="fas fa-dumbbell"></i>
+                        </div>
+                        <div class="nutrition-content">
+                            <h3>Protein</h3>
+                            <p class="nutrition-value">120 <span>g</span></p>
+                            <p class="nutrition-goal">Goal: 140 g</p>
+                        </div>
+                    </div>
+                    
+                    <div class="nutrition-card">
+                        <div class="nutrition-icon">
+                            <i class="fas fa-bread-slice"></i>
+                        </div>
+                        <div class="nutrition-content">
+                            <h3>Carbs</h3>
+                            <p class="nutrition-value">300 <span>g</span></p>
+                            <p class="nutrition-goal">Goal: 275 g</p>
+                        </div>
+                    </div>
+                    
+                    <div class="nutrition-card">
+                        <div class="nutrition-icon">
+                            <i class="fas fa-oil-can"></i>
+                        </div>
+                        <div class="nutrition-content">
+                            <h3>Fats</h3>
+                            <p class="nutrition-value">80 <span>g</span></p>
+                            <p class="nutrition-goal">Goal: 90 g</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <!-- Same footer as index.html -->
+    </footer>
+
+    <script src="MealSuggestion.js"></script>
+</body>
+</html>
