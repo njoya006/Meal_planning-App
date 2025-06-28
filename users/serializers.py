@@ -5,7 +5,7 @@ from django.contrib.auth.hashers import make_password
 from django.core.files.base import ContentFile
 from rest_framework import serializers
 
-from .models import CustomUser, DietaryPreference
+from .models import CustomUser, DietaryPreference, VerificationApplication
 from recipes.models import Recipe
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -217,3 +217,57 @@ class RecipeSerializer(serializers.ModelSerializer):
             'username': user.username,
             'basic_ingredients': user.basic_ingredients
         } if user else None
+
+class VerificationApplicationSerializer(serializers.ModelSerializer):
+    """Serializer for verification application submission."""
+    
+    class Meta:
+        model = VerificationApplication
+        fields = [
+            'full_name', 'cooking_experience', 'specialties', 
+            'social_media_links', 'sample_recipes', 'motivation'
+        ]
+    
+    def create(self, validated_data):
+        """Create verification application for the current user."""
+        user = self.context['request'].user
+        
+        # Check if user already has an application
+        if hasattr(user, 'verification_application'):
+            raise serializers.ValidationError(
+                "You already have a verification application submitted."
+            )
+        
+        # Update user verification status to pending
+        user.verification_status = 'pending'
+        user.save()
+        
+        # Create the application
+        application = VerificationApplication.objects.create(
+            user=user,
+            **validated_data
+        )
+        return application
+
+class VerificationApplicationDetailSerializer(serializers.ModelSerializer):
+    """Serializer for viewing verification application details (admin use)."""
+    
+    user = serializers.StringRelatedField()
+    reviewed_by = serializers.StringRelatedField()
+    
+    class Meta:
+        model = VerificationApplication
+        fields = '__all__'
+
+class VerificationApplicationReviewSerializer(serializers.Serializer):
+    """Serializer for admin to approve/reject verification applications."""
+    
+    action = serializers.ChoiceField(choices=['approve', 'reject'])
+    admin_notes = serializers.CharField(required=False, allow_blank=True)
+    
+    def validate(self, data):
+        if data['action'] == 'reject' and not data.get('admin_notes'):
+            raise serializers.ValidationError(
+                "Admin notes are required when rejecting an application."
+            )
+        return data

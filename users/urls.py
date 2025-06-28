@@ -1,5 +1,10 @@
 from django.urls import path, include
-from .views import UserLoginView, UserRegistrationView, UserProfileView, VerifyContributorView, DietaryPreferenceView, ChangePasswordView, UserLogoutView, GoogleLoginView
+from .views import (
+    UserLoginView, UserRegistrationView, UserProfileView, VerifyContributorView, 
+    DietaryPreferenceView, ChangePasswordView, UserLogoutView, GoogleLoginView,
+    VerificationApplicationView, VerificationApplicationListView,
+    VerificationApplicationReviewView, VerificationStatusView
+)
 
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='user-registration'),
@@ -13,4 +18,10 @@ urlpatterns = [
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('logout/', UserLogoutView.as_view(), name='user-logout'),
     path('google-login/', GoogleLoginView.as_view(), name='google-login'),
+    
+    # Verification application endpoints
+    path('verification/apply/', VerificationApplicationView.as_view(), name='verification-apply'),
+    path('verification/status/', VerificationStatusView.as_view(), name='verification-status'),
+    path('verification/admin/applications/', VerificationApplicationListView.as_view(), name='admin-applications'),
+    path('verification/admin/review/<int:application_id>/', VerificationApplicationReviewView.as_view(), name='admin-review'),
 ]

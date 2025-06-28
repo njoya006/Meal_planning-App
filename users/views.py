@@ -3,10 +3,16 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.authtoken.models import Token # Import Token model for authentication
-from .serializers import DietaryPreferenceSerializer, UserRegistrationSerializer, UserLoginSerializer, UserProfileUpdateSerializer, UserProfileSerializer
+from .serializers import (
+    DietaryPreferenceSerializer, UserRegistrationSerializer, UserLoginSerializer, 
+    UserProfileUpdateSerializer, UserProfileSerializer,
+    VerificationApplicationSerializer, VerificationApplicationDetailSerializer,
+    VerificationApplicationReviewSerializer
+)
+from .models import CustomUser, DietaryPreference, VerificationApplication
+from .notifications import send_verification_approval_email, send_verification_rejection_email
 from rest_framework.permissions import IsAuthenticated #import the new login serializer
 from .permissions import IsAdminUser # Import the custom permission class
-from .models import CustomUser, DietaryPreference # Import your CustomUser model
 from django.contrib.auth import logout # Import logout function
 import requests
 from django.contrib.auth import get_user_model
@@ -219,3 +225,132 @@ class GoogleLoginView(APIView):
             'first_name': user.first_name,
             'last_name': user.last_name
         }, status=status.HTTP_200_OK)
+
+# Add these verification views at the end of the file
+
+class VerificationApplicationView(APIView):
+    """View for users to submit verification applications."""
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """Submit a verification application."""
+        serializer = VerificationApplicationSerializer(
+            data=request.data, 
+            context={'request': request}
+        )
+        if serializer.is_valid():
+            application = serializer.save()
+            return Response({
+                'message': 'Verification application submitted successfully!',
+                'application_id': application.id,
+                'status': 'pending'
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def get(self, request):
+        """Get current user's verification application status."""
+        try:
+            application = request.user.verification_application
+            serializer = VerificationApplicationDetailSerializer(application)
+            return Response({
+                'application': serializer.data,
+                'verification_status': request.user.verification_status
+            })
+        except VerificationApplication.DoesNotExist:
+            return Response({
+                'message': 'No verification application found',
+                'verification_status': request.user.verification_status
+            }, status=status.HTTP_404_NOT_FOUND)
+
+class VerificationApplicationListView(APIView):
+    """Admin view to list all verification applications."""
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def get(self, request):
+        """Get all verification applications."""
+        status_filter = request.query_params.get('status', 'pending')
+        applications = VerificationApplication.objects.filter(status=status_filter)
+        serializer = VerificationApplicationDetailSerializer(applications, many=True)
+        return Response({
+            'applications': serializer.data,
+            'count': applications.count()
+        })
+
+class VerificationApplicationReviewView(APIView):
+    """Admin view to approve/reject verification applications."""
+    permission_classes = [IsAuthenticated, IsAdminUser]
+    
+    def post(self, request, application_id):
+        """Approve or reject a verification application."""
+        try:
+            application = VerificationApplication.objects.get(id=application_id)
+        except VerificationApplication.DoesNotExist:
+            return Response(
+                {'error': 'Application not found'}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        serializer = VerificationApplicationReviewSerializer(data=request.data)
+        if serializer.is_valid():
+            action = serializer.validated_data['action']
+            admin_notes = serializer.validated_data.get('admin_notes', '')
+            
+            if action == 'approve':
+                application.approve(request.user)
+                # Send approval notification email
+                send_verification_approval_email(application.user)
+                return Response({
+                    'message': f'User {application.user.username} has been approved as a verified contributor!',
+                    'user_id': application.user.id,
+                    'new_status': 'approved'
+                })
+            else:  # reject
+                application.reject(request.user, admin_notes)
+                # Send rejection notification email
+                send_verification_rejection_email(application.user, admin_notes)
+                return Response({
+                    'message': f'Application for {application.user.username} has been rejected.',
+                    'reason': admin_notes,
+                    'new_status': 'rejected'
+                })
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class VerificationStatusView(APIView):
+    """View to check verification status and requirements."""
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        """Get current user's verification status and requirements."""
+        user = request.user
+        
+        response_data = {
+            'verification_status': user.verification_status,
+            'is_verified_contributor': user.is_verified_contributor,
+            'can_apply': user.verification_status == 'none',
+            'verified_at': user.verified_at,
+            'verified_by': user.verified_by.username if user.verified_by else None,
+        }
+        
+        # Add application details if exists
+        if hasattr(user, 'verification_application'):
+            app = user.verification_application
+            response_data['application'] = {
+                'submitted_at': app.submitted_at,
+                'status': app.status,
+                'reviewed_at': app.reviewed_at,
+                'admin_notes': app.admin_notes if app.status == 'rejected' else None
+            }
+        
+        # Add verification requirements info
+        response_data['requirements'] = {
+            'description': 'To become a verified contributor, you need to submit an application with your cooking experience, specialties, and motivation.',
+            'benefits': [
+                'Create and share recipes with the community',
+                'Get a verified badge on your profile',
+                'Access to advanced recipe management tools',
+                'Priority support from our team'
+            ]
+        }
+        
+        return Response(response_data)
