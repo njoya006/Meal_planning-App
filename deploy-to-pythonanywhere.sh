@@ -148,6 +148,31 @@ try:
             print(f'   Token: {result.get(\"token\", \"N/A\")[:20]}...')
             print(f'   User ID: {result.get(\"user_id\")}')
             print(f'   Username: {result.get(\"username\")}')
+            
+            # Test verification endpoints with the token
+            token = result.get('token')
+            if token:
+                print('\\n🔍 Testing verification endpoints...')
+                headers = {'Authorization': f'Token {token}', 'Content-Type': 'application/json'}
+                
+                # Test verification status endpoint
+                try:
+                    status_response = requests.get(
+                        'https://njoya.pythonanywhere.com/api/users/verification/status/',
+                        headers=headers,
+                        timeout=10
+                    )
+                    print(f'Verification Status Endpoint: {status_response.status_code}')
+                    if status_response.status_code == 200:
+                        print('✅ Verification status endpoint working')
+                        status_data = status_response.json()
+                        print(f'   Current status: {status_data.get(\"verification_status\")}')
+                        print(f'   Can apply: {status_data.get(\"can_apply\")}')
+                    else:
+                        print(f'❌ Verification status failed: {status_response.text[:100]}')
+                except Exception as e:
+                    print(f'❌ Verification status error: {e}')
+            
         except:
             print(f'❌ Login response not JSON: {response.text[:100]}')
     else:
