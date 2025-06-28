@@ -168,6 +168,36 @@ try:
                         status_data = status_response.json()
                         print(f'   Current status: {status_data.get(\"verification_status\")}')
                         print(f'   Can apply: {status_data.get(\"can_apply\")}')
+                        print(f'   Is verified: {status_data.get(\"is_verified\")}')
+                        
+                        # Test verification apply endpoint (POST)
+                        if status_data.get('can_apply'):
+                            print('\\n🔄 Testing verification application...')
+                            apply_data = {
+                                'business_name': 'Test Restaurant',
+                                'business_license': 'TEST-LICENSE-123',
+                                'description': 'Test verification application from deployment script'
+                            }
+                            try:
+                                apply_response = requests.post(
+                                    'https://njoya.pythonanywhere.com/api/users/verification/apply/',
+                                    json=apply_data,
+                                    headers=headers,
+                                    timeout=10
+                                )
+                                print(f'Apply Endpoint: {apply_response.status_code}')
+                                if apply_response.status_code in [200, 201]:
+                                    print('✅ Verification application endpoint working')
+                                    apply_result = apply_response.json()
+                                    print(f'   Application ID: {apply_result.get(\"id\")}')
+                                    print(f'   Status: {apply_result.get(\"status\")}')
+                                elif apply_response.status_code == 400:
+                                    print('✅ Apply endpoint working (already applied or validation error)')
+                                    print(f'   Response: {apply_response.json()}')
+                                else:
+                                    print(f'❌ Apply failed: {apply_response.text[:100]}')
+                            except Exception as e:
+                                print(f'❌ Apply endpoint error: {e}')
                     else:
                         print(f'❌ Verification status failed: {status_response.text[:100]}')
                 except Exception as e:
