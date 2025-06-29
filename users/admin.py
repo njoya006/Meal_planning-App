@@ -65,8 +65,8 @@ class VerificationApplicationAdmin(admin.ModelAdmin):
     def application_actions(self, obj):
         """Custom actions for approving/rejecting applications."""
         if obj.status == 'pending':
-            approve_url = reverse('admin:approve_application', args=[obj.pk])
-            reject_url = reverse('admin:reject_application', args=[obj.pk])
+            approve_url = f'/admin/users/verificationapplication/{obj.pk}/approve/'
+            reject_url = f'/admin/users/verificationapplication/{obj.pk}/reject/'
             return format_html(
                 '<a class="button" href="{}">Approve</a> '
                 '<a class="button" href="{}">Reject</a>',
