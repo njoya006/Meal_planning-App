@@ -171,12 +171,13 @@ class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(read_only=True)
     profile_photo = serializers.SerializerMethodField()
     dietary_preferences = serializers.SerializerMethodField()
+    verified_badge = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name', 'role',
-            'is_verified_contributor', 'phone_number', 'date_of_birth',
+            'is_verified_contributor', 'verified_badge', 'phone_number', 'date_of_birth',
             'location', 'basic_ingredients', 'dietary_preferences', 'profile_photo'
         ]
 
@@ -200,6 +201,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
             pass
         return []
 
+    def get_verified_badge(self, obj):
+        if getattr(obj, 'is_verified_contributor', False):
+            return {
+                'label': 'Verified Contributor',
+                'icon': '✅',
+                'color': '#2ecc40'
+            }
+        return None
 
 class RecipeSerializer(serializers.ModelSerializer):
     """Serializer for recipe display with contributor info."""
