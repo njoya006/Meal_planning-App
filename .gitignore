@@ -22,3 +22,6 @@ debug.log
 
 # Documentation files (optional - remove this line if you want to commit docs)
 INGREDIENT_DISCOVERY_GUIDE.md
+
+# Ignore embedded git repo in Meal_planning-App
+Meal_planning-App/.git
