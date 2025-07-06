@@ -33,5 +33,6 @@ urlpatterns = [
     path('api/dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')),
     path('api/planner/', include('planner.urls')),
     path('api/recipes/', include('recipes.urls')),
+    path('api/', include('api.urls')),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
