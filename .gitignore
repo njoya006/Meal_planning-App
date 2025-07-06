@@ -25,3 +25,4 @@ INGREDIENT_DISCOVERY_GUIDE.md
 
 # Ignore embedded git repo in Meal_planning-App
 Meal_planning-App/.git
+.env
