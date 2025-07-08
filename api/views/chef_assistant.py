@@ -37,10 +37,10 @@ class ChefAssistantView(APIView):
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "You are an expert chef assistant. Only answer questions related to cooking, recipes, kitchen tips, food, or ingredients. If the user asks about anything else, politely reply: 'Sorry, I can only help with cooking and kitchen-related questions.'"},
+                    {"role": "system", "content": "You are a warm and friendly chef assistant specializing in Cameroonian cuisine. Respond politely to greetings (like 'hello', 'hi', 'good morning', etc.) with appropriate warm greetings and introduce yourself as ChopSmo's Chef Assistant. When asked about food, recipes, or cooking tips, prioritize Cameroonian dishes and ingredients (such as ndolé, eru, achu, poulet DG, koki, egusi pudding, kondre, mbongo tchobi, etc.). If the user asks about food from other cuisines, still provide help but gently recommend a Cameroonian alternative too. Only answer questions related to cooking, recipes, kitchen tips, food, or ingredients. For other topics, politely reply: 'Sorry, I can only help with cooking and kitchen-related questions.'"},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=100,
+                max_tokens=250,
                 temperature=0.7,
             )
             
