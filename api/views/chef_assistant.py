@@ -38,6 +38,7 @@ class ChefAssistantView(APIView):
             )
             suggestion = response.choices[0].message["content"].strip()
         except Exception as e:
+            print("Chef Assistant error:", str(e))  # This will show the real error in the error log
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({"suggestion": suggestion}, status=status.HTTP_200_OK)
