@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Recipe, Ingredient, RecipeIngredient, Category, Cuisine, Tag
+from .models import Recipe, Ingredient, RecipeIngredient, Category, Cuisine, Tag, RecipeRating, RecipeLike, RecipeComment
 from users.serializers import UserProfileSerializer
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -108,6 +108,12 @@ class RecipeSerializer(serializers.ModelSerializer):
     categories = CategorySerializer(many=True, read_only=True)
     cuisines = CuisineSerializer(many=True, read_only=True)
     tags = TagSerializer(many=True, read_only=True)
+    # Rating fields
+    average_rating = serializers.FloatField(read_only=True)
+    rating_count = serializers.IntegerField(read_only=True)
+    # Like and comment counts
+    like_count = serializers.IntegerField(read_only=True)
+    comment_count = serializers.IntegerField(read_only=True)
     # Accept names instead of IDs for creation
     category_names = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
     cuisine_names = serializers.ListField(child=serializers.CharField(), write_only=True, required=False)
@@ -123,7 +129,8 @@ class RecipeSerializer(serializers.ModelSerializer):
             'id', 'contributor', 'contributor_id', 'title', 'description', 'instructions',
             'prep_time', 'cook_time', 'servings', 'created_at', 'updated_at', 'ingredients',
             'ingredients_data', 'approved', 'feedback', 'slug', 'is_active', 'difficulty', 'source',
-            'categories', 'category_names', 'cuisines', 'cuisine_names', 'tags', 'tag_names', 'image', 'image_upload'
+            'categories', 'category_names', 'cuisines', 'cuisine_names', 'tags', 'tag_names', 'image', 'image_upload',
+            'average_rating', 'rating_count', 'like_count', 'comment_count'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'contributor', 'approved', 'feedback', 'categories', 'cuisines', 'tags']
 
@@ -304,3 +311,106 @@ class RecipeSerializer(serializers.ModelSerializer):
         if not instructions or len(instructions.strip()) < 20:
             raise serializers.ValidationError('Please provide well-explained steps (at least 20 characters).')
         return data
+
+class RecipeRatingSerializer(serializers.ModelSerializer):
+    """Serializer for viewing RecipeRating model."""
+    user = UserProfileSerializer(read_only=True)
+    
+    class Meta:
+        model = RecipeRating
+        fields = ['id', 'user', 'rating', 'review', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+class RecipeRatingCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating/updating RecipeRating model."""
+    
+    class Meta:
+        model = RecipeRating
+        fields = ['recipe', 'rating', 'review']
+        
+    def validate(self, data):
+        """
+        Ensure the user can only rate a recipe once (will update if already exists).
+        """
+        user = self.context['request'].user
+        recipe = data.get('recipe')
+        
+        # Check if this is an update to an existing rating
+        if self.instance:
+            return data
+            
+        # Check if user has already rated this recipe
+        existing_rating = RecipeRating.objects.filter(user=user, recipe=recipe).first()
+        if existing_rating:
+            raise serializers.ValidationError("You have already rated this recipe. Please edit your existing rating.")
+        
+        return data
+        
+    def create(self, validated_data):
+        """Create a new rating."""
+        user = self.context['request'].user
+        validated_data['user'] = user
+        return super().create(validated_data)
+
+class RecipeLikeSerializer(serializers.ModelSerializer):
+    """Serializer for viewing RecipeLike model."""
+    user = UserProfileSerializer(read_only=True)
+    
+    class Meta:
+        model = RecipeLike
+        fields = ['id', 'user', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class RecipeLikeCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating/deleting RecipeLike."""
+    
+    class Meta:
+        model = RecipeLike
+        fields = ['recipe']
+        
+    def validate(self, data):
+        """Ensure the user can only like a recipe once."""
+        user = self.context['request'].user
+        recipe = data.get('recipe')
+        
+        # Check if this is an update
+        if self.instance:
+            return data
+            
+        # Check if user has already liked this recipe
+        existing_like = RecipeLike.objects.filter(user=user, recipe=recipe).first()
+        if existing_like:
+            raise serializers.ValidationError("You have already liked this recipe.")
+        
+        return data
+        
+    def create(self, validated_data):
+        """Create a new like."""
+        user = self.context['request'].user
+        validated_data['user'] = user
+        return super().create(validated_data)
+
+
+class RecipeCommentSerializer(serializers.ModelSerializer):
+    """Serializer for viewing RecipeComment model."""
+    user = UserProfileSerializer(read_only=True)
+    
+    class Meta:
+        model = RecipeComment
+        fields = ['id', 'user', 'content', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class RecipeCommentCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating/updating RecipeComment."""
+    
+    class Meta:
+        model = RecipeComment
+        fields = ['recipe', 'content']
+        
+    def create(self, validated_data):
+        """Create a new comment."""
+        user = self.context['request'].user
+        validated_data['user'] = user
+        return super().create(validated_data)

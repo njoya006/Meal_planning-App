@@ -297,6 +297,39 @@ class Recipe(models.Model):
             nutrition['carbs'] += getattr(ing, 'carbs_per_100g', 0) * factor
         return nutrition
 
+    @property
+    def average_rating(self):
+        """Calculate and return the average rating for this recipe."""
+        ratings = self.rating_set.all()
+        if not ratings:
+            return None
+        return sum(r.rating for r in ratings) / len(ratings)
+    
+    @property
+    def rating_count(self):
+        """Return the number of ratings for this recipe."""
+        return self.rating_set.count()
+    
+    @property
+    def like_count(self):
+        """Return the number of likes for this recipe."""
+        # Use the relationship field for actual count
+        return self.like_set.count()
+    
+    @property
+    def comment_count(self):
+        """Return the number of comments for this recipe."""
+        # Use the relationship field for actual count
+        return self.comment_set.filter(is_approved=True).count()
+        
+    def update_counters(self):
+        """Update the counter fields with the actual counts."""
+        self.views = self.views or 0  # Keep the existing view count
+        self.likes = self.like_set.count()
+        self.comments = self.comment_set.filter(is_approved=True).count()
+        self.saves = self.saves or 0   # Keep the existing save count
+        self.save(update_fields=['views', 'likes', 'comments', 'saves'])
+
 class RecipeIngredient(models.Model):
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
     ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
@@ -380,3 +413,105 @@ class BasicIngredientUsage(models.Model):
 
     def __str__(self):
         return f"{self.ingredient} (user: {self.user}, region: {self.region}, {self.timestamp})"
+
+class RecipeRating(models.Model):
+    """Model representing a user's rating and optional review for a recipe."""
+    
+    RATING_CHOICES = [
+        (1, '1 - Poor'),
+        (2, '2 - Fair'),
+        (3, '3 - Good'),
+        (4, '4 - Very Good'),
+        (5, '5 - Excellent')
+    ]
+    
+    recipe = models.ForeignKey(
+        'Recipe',
+        on_delete=models.CASCADE,
+        related_name='rating_set',
+        verbose_name=_('Recipe')
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='recipe_ratings',
+        verbose_name=_('User')
+    )
+    rating = models.PositiveSmallIntegerField(
+        _('Rating'),
+        choices=RATING_CHOICES,
+        help_text=_('Rating from 1 to 5 stars')
+    )
+    review = models.TextField(
+        _('Review'),
+        blank=True,
+        null=True,
+        help_text=_('Optional review text')
+    )
+    created_at = models.DateTimeField(_('Created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('Updated at'), auto_now=True)
+
+    class Meta:
+        verbose_name = _('Recipe Rating')
+        verbose_name_plural = _('Recipe Ratings')
+        # Ensure a user can only rate a recipe once
+        unique_together = ('recipe', 'user')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username}'s {self.rating}-star rating for {self.recipe.title}"
+
+class RecipeLike(models.Model):
+    """Model representing a user's like for a recipe."""
+    
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+        related_name='like_set',
+        verbose_name=_('Recipe')
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='recipe_likes',
+        verbose_name=_('User')
+    )
+    created_at = models.DateTimeField(_('Created at'), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _('Recipe Like')
+        verbose_name_plural = _('Recipe Likes')
+        # Ensure a user can only like a recipe once
+        unique_together = ('recipe', 'user')
+
+    def __str__(self):
+        return f"{self.user.username} likes {self.recipe.title}"
+
+
+class RecipeComment(models.Model):
+    """Model representing a user's comment on a recipe."""
+    
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+        related_name='comment_set',
+        verbose_name=_('Recipe')
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='recipe_comments',
+        verbose_name=_('User')
+    )
+    content = models.TextField(_('Comment'))
+    created_at = models.DateTimeField(_('Created at'), auto_now_add=True)
+    updated_at = models.DateTimeField(_('Updated at'), auto_now=True)
+    is_approved = models.BooleanField(_('Approved'), default=True, help_text=_('Comment requires approval before being shown publicly'))
+
+    class Meta:
+        verbose_name = _('Recipe Comment')
+        verbose_name_plural = _('Recipe Comments')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Comment by {self.user.username} on {self.recipe.title}"

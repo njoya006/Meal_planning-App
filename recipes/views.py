@@ -1,13 +1,13 @@
 from difflib import get_close_matches
 
 from django.db import models
-from django.db.models import Count
+from django.db.models import Count, Avg
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, generics, mixins, permissions
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from rest_framework.response import Response
 
 from .bad_ingredients import (
@@ -16,14 +16,20 @@ from .bad_ingredients import (
     get_bad_ingredient_categories, 
     get_ingredient_substitutions
 )
-from .models import Recipe, Ingredient, Category, Cuisine, Tag
+from .models import Recipe, Ingredient, Category, Cuisine, Tag, RecipeRating, RecipeLike, RecipeComment
 from .permissions import IsVerifiedContributor
 from .serializers import (
     RecipeSerializer, 
     IngredientSerializer, 
     CategorySerializer, 
     CuisineSerializer, 
-    TagSerializer
+    TagSerializer,
+    RecipeRatingSerializer,
+    RecipeRatingCreateSerializer,
+    RecipeLikeSerializer,
+    RecipeLikeCreateSerializer,
+    RecipeCommentSerializer,
+    RecipeCommentCreateSerializer
 )
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -172,6 +178,93 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['get'])
+    def ratings(self, request, pk=None):
+        """Return all ratings for a recipe."""
+        recipe = self.get_object()
+        ratings = recipe.rating_set.all()
+        serializer = RecipeRatingSerializer(ratings, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def rate(self, request, pk=None):
+        """Rate a recipe."""
+        recipe = self.get_object()
+        user = request.user
+        
+        # Check if user has already rated this recipe
+        existing_rating = RecipeRating.objects.filter(user=user, recipe=recipe).first()
+        
+        if existing_rating:
+            # Update existing rating
+            serializer = RecipeRatingCreateSerializer(
+                existing_rating,
+                data=request.data,
+                context={'request': request}
+            )
+        else:
+            # Create new rating
+            serializer = RecipeRatingCreateSerializer(
+                data={**request.data, 'recipe': recipe.id},
+                context={'request': request}
+            )
+        
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['get'])
+    def likes(self, request, pk=None):
+        """Return all likes for a recipe."""
+        recipe = self.get_object()
+        likes = recipe.like_set.all()
+        serializer = RecipeLikeSerializer(likes, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def like(self, request, pk=None):
+        """Like or unlike a recipe."""
+        recipe = self.get_object()
+        user = request.user
+        
+        # Check if user has already liked this recipe
+        existing_like = RecipeLike.objects.filter(user=user, recipe=recipe).first()
+        
+        if existing_like:
+            # Unlike the recipe
+            existing_like.delete()
+            return Response({"status": "unliked"}, status=status.HTTP_200_OK)
+        else:
+            # Like the recipe
+            serializer = RecipeLikeCreateSerializer(
+                data={'recipe': recipe.id},
+                context={'request': request}
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['get'])
+    def comments(self, request, pk=None):
+        """Return all approved comments for a recipe."""
+        recipe = self.get_object()
+        comments = recipe.comment_set.filter(is_approved=True)
+        serializer = RecipeCommentSerializer(comments, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def comment(self, request, pk=None):
+        """Add a comment to a recipe."""
+        recipe = self.get_object()
+        
+        serializer = RecipeCommentCreateSerializer(
+            data={**request.data, 'recipe': recipe.id},
+            context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for ingredient search and discovery."""
     queryset = Ingredient.objects.all().order_by('name')
@@ -310,3 +403,180 @@ class TagViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         user = self.request.user if self.request.user.is_authenticated else None
         serializer.save(user=user)
+
+class RecipeRatingViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for recipe ratings.
+    
+    list:
+    Return a list of all ratings for a specific recipe.
+    
+    create:
+    Create a new rating for a recipe.
+    
+    retrieve:
+    Return a specific rating.
+    
+    update:
+    Update a specific rating.
+    
+    partial_update:
+    Partially update a specific rating.
+    
+    destroy:
+    Delete a specific rating.
+    """
+    queryset = RecipeRating.objects.all()
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return RecipeRatingCreateSerializer
+        return RecipeRatingSerializer
+    
+    def get_queryset(self):
+        """
+        Filter ratings by recipe_id if provided in query parameters.
+        """
+        queryset = RecipeRating.objects.all()
+        recipe_id = self.request.query_params.get('recipe_id', None)
+        if recipe_id is not None:
+            queryset = queryset.filter(recipe_id=recipe_id)
+        return queryset
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+    
+    def perform_update(self, serializer):
+        serializer.save(user=self.request.user)
+    
+    def get_permissions(self):
+        """
+        Only allow users to update or delete their own ratings.
+        """
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsOwnerOrReadOnly()]
+        return super().get_permissions()
+        
+
+class IsOwnerOrReadOnly(permissions.BasePermission):
+    """
+    Custom permission to only allow owners of a rating to edit or delete it.
+    """
+    def has_object_permission(self, request, view, obj):
+        # Read permissions are allowed to any request
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        
+        # Write permissions are only allowed to the owner
+        return obj.user == request.user
+
+
+class RecipeLikeViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for recipe likes.
+    
+    list:
+    Return a list of all likes for a specific recipe.
+    
+    create:
+    Like a recipe.
+    
+    retrieve:
+    Return a specific like.
+    
+    destroy:
+    Unlike a recipe.
+    """
+    queryset = RecipeLike.objects.all()
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action in ['create']:
+            return RecipeLikeCreateSerializer
+        return RecipeLikeSerializer
+    
+    def get_queryset(self):
+        """
+        Filter likes by recipe_id if provided in query parameters.
+        """
+        queryset = RecipeLike.objects.all()
+        recipe_id = self.request.query_params.get('recipe_id', None)
+        if recipe_id is not None:
+            queryset = queryset.filter(recipe_id=recipe_id)
+        return queryset
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+    
+    def get_permissions(self):
+        """
+        Only allow users to delete their own likes.
+        """
+        if self.action in ['destroy']:
+            return [permissions.IsAuthenticated(), IsOwnerOrReadOnly()]
+        return super().get_permissions()
+
+
+class RecipeCommentViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for recipe comments.
+    
+    list:
+    Return a list of all comments for a specific recipe.
+    
+    create:
+    Create a new comment for a recipe.
+    
+    retrieve:
+    Return a specific comment.
+    
+    update:
+    Update a specific comment.
+    
+    partial_update:
+    Partially update a specific comment.
+    
+    destroy:
+    Delete a specific comment.
+    """
+    queryset = RecipeComment.objects.all()
+    permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action in ['create', 'update', 'partial_update']:
+            return RecipeCommentCreateSerializer
+        return RecipeCommentSerializer
+    
+    def get_queryset(self):
+        """
+        Filter comments by recipe_id if provided in query parameters.
+        Only return approved comments unless the user is staff.
+        """
+        queryset = RecipeComment.objects.all()
+        
+        # Filter by recipe_id if provided
+        recipe_id = self.request.query_params.get('recipe_id', None)
+        if recipe_id is not None:
+            queryset = queryset.filter(recipe_id=recipe_id)
+        
+        # Only show approved comments to non-staff users
+        user = self.request.user
+        if not user.is_staff and not user.is_superuser:
+            queryset = queryset.filter(is_approved=True)
+        
+        return queryset
+    
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+    
+    def perform_update(self, serializer):
+        serializer.save(user=self.request.user)
+    
+    def get_permissions(self):
+        """
+        Only allow users to update or delete their own comments.
+        """
+        if self.action in ['update', 'partial_update', 'destroy']:
+            return [permissions.IsAuthenticated(), IsOwnerOrReadOnly()]
+        return super().get_permissions()

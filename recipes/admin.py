@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Recipe, Ingredient, RecipeIngredient, BadIngredient, IngredientSubstitution, IngredientSynonym, Category, Cuisine, Tag, BasicIngredient, UserPantry, BasicIngredientUsage # Import your models
+from .models import Recipe, Ingredient, RecipeIngredient, BadIngredient, IngredientSubstitution, IngredientSynonym, Category, Cuisine, Tag, BasicIngredient, UserPantry, BasicIngredientUsage, RecipeRating, RecipeLike, RecipeComment # Import your models
 
 # --- Option 1: Basic Registration ---
 # This is the simplest way to get your models into the admin.
@@ -170,3 +170,34 @@ class BasicIngredientUsageAdmin(admin.ModelAdmin):
     list_display = ['ingredient', 'user', 'region', 'timestamp']
     search_fields = ['ingredient', 'user__username', 'region']
     list_filter = ['region', 'ingredient']
+
+@admin.register(RecipeRating)
+class RecipeRatingAdmin(admin.ModelAdmin):
+    """
+    Customizes the display of the RecipeRating model in the Django admin.
+    """
+    list_display = ['recipe', 'user', 'rating', 'created_at']
+    list_filter = ['rating', 'created_at']
+    search_fields = ['recipe__title', 'user__username', 'review']
+    readonly_fields = ['created_at', 'updated_at']
+
+@admin.register(RecipeLike)
+class RecipeLikeAdmin(admin.ModelAdmin):
+    """
+    Customizes the display of the RecipeLike model in the Django admin.
+    """
+    list_display = ['recipe', 'user', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['recipe__title', 'user__username']
+    readonly_fields = ['created_at']
+
+@admin.register(RecipeComment)
+class RecipeCommentAdmin(admin.ModelAdmin):
+    """
+    Customizes the display of the RecipeComment model in the Django admin.
+    """
+    list_display = ['recipe', 'user', 'content', 'created_at', 'is_approved']
+    list_filter = ['created_at', 'is_approved']
+    search_fields = ['recipe__title', 'user__username', 'content']
+    readonly_fields = ['created_at', 'updated_at']
+    list_editable = ['is_approved']

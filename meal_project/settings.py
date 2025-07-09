@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'planner',
     'recipes',
     'api',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
@@ -279,8 +280,13 @@ SITE_ID = 1
 
 # dj-rest-auth and allauth settings
 REST_USE_JWT = False
-ACCOUNT_SIGNUP_FIELDS = ['username', 'email']
-ACCOUNT_LOGIN_METHOD = 'username_email'
+
+# New style settings for django-allauth (preferred since Django 5.2)
+ACCOUNT_SIGNUP_FIELDS = {
+    'username': {'required': True},
+    'email': {'required': True},
+}
+ACCOUNT_LOGIN_METHODS = ['username', 'email']
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
 
 SOCIALACCOUNT_PROVIDERS = {
