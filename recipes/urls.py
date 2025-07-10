@@ -1,3 +1,4 @@
+
 from rest_framework.routers import DefaultRouter
 from django.urls import path
 from .views import RecipeViewSet, IngredientViewSet, RecipeRatingViewSet, RecipeLikeViewSet, RecipeCommentViewSet, RecipeReviewsView
@@ -9,7 +10,7 @@ router.register(r'ratings', RecipeRatingViewSet)
 router.register(r'likes', RecipeLikeViewSet)
 router.register(r'comments', RecipeCommentViewSet)
 
-urlpatterns = router.urls + [
-    # /api/recipes/<id>/reviews/
-    path('recipes/<int:pk>/reviews/', RecipeReviewsView.as_view(), name='recipe-reviews'),
-]
+# Place the custom reviews path BEFORE the router's URLs
+urlpatterns = [
+    path('<int:pk>/reviews/', RecipeReviewsView.as_view(), name='recipe-reviews'),
+] + router.urls
