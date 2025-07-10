@@ -9,8 +9,13 @@ class RecipeReviewPagination(PageNumberPagination):
     max_page_size = 20
 
 class RecipeReviewsView(APIView):
-    permission_classes = [AllowAny]  # Allow unauthenticated access to read reviews
-    
+    def get_permissions(self):
+        # Allow any for GET, require auth for POST
+        if self.request.method == 'POST':
+            from rest_framework.permissions import IsAuthenticated
+            return [IsAuthenticated()]
+        return [AllowAny()]
+
     def get(self, request, pk):
         """Return paginated reviews (ratings with review text) for a recipe."""
         from .models import RecipeRating
@@ -20,6 +25,26 @@ class RecipeReviewsView(APIView):
         page = paginator.paginate_queryset(reviews, request)
         serializer = RecipeRatingSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
+
+    def post(self, request, pk):
+        """Allow authenticated users to submit a review for a recipe."""
+        from .models import RecipeRating, Recipe
+        from .serializers import RecipeRatingCreateSerializer
+        try:
+            recipe = Recipe.objects.get(pk=pk)
+        except Recipe.DoesNotExist:
+            from rest_framework.response import Response
+            from rest_framework import status
+            return Response({'detail': 'Recipe not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data.copy()
+        data['recipe'] = recipe.id
+        serializer = RecipeRatingCreateSerializer(data=data, context={'request': request})
+        if serializer.is_valid():
+            rating = serializer.save()
+            from .serializers import RecipeRatingSerializer
+            return Response(RecipeRatingSerializer(rating).data, status=201)
+        return Response(serializer.errors, status=400)
 from difflib import get_close_matches
 
 from django.db import models
