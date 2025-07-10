@@ -1,5 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny
 
 # --- Recipe Reviews Endpoint ---
 class RecipeReviewPagination(PageNumberPagination):
@@ -8,6 +9,8 @@ class RecipeReviewPagination(PageNumberPagination):
     max_page_size = 20
 
 class RecipeReviewsView(APIView):
+    permission_classes = [AllowAny]  # Allow unauthenticated access to read reviews
+    
     def get(self, request, pk):
         """Return paginated reviews (ratings with review text) for a recipe."""
         from .models import RecipeRating
