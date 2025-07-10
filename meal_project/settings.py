@@ -220,9 +220,13 @@ CORS_ALLOWED_ORIGINS = [
     "https://njoya.pythonanywhere.com",
 ]
 
-# Alternative: Allow all origins for media files (less secure but works)
-# You can uncomment this if you still have issues
-# CORS_ALLOW_ALL_ORIGINS = True
+# For development or debugging purposes, you can uncomment this to allow all origins
+CORS_ALLOW_ALL_ORIGINS = True
+
+# Allow requests from any subdomain of vercel.app
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.vercel\.app$",
+]
 
 CORS_ALLOW_HEADERS = [
     'authorization',
@@ -254,6 +258,8 @@ CORS_ALLOW_METHODS = [
     'GET',
     'OPTIONS',
     'PATCH',
+    'POST',
+    'PUT',
     'POST',
     'PUT',
 ]
