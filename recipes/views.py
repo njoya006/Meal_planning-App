@@ -1,3 +1,22 @@
+from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
+
+# --- Recipe Reviews Endpoint ---
+class RecipeReviewPagination(PageNumberPagination):
+    page_size = 5
+    page_size_query_param = 'page_size'
+    max_page_size = 20
+
+class RecipeReviewsView(APIView):
+    def get(self, request, pk):
+        """Return paginated reviews (ratings with review text) for a recipe."""
+        from .models import RecipeRating
+        from .serializers import RecipeRatingSerializer
+        reviews = RecipeRating.objects.filter(recipe_id=pk).exclude(review__isnull=True).exclude(review__exact="").order_by('-created_at')
+        paginator = RecipeReviewPagination()
+        page = paginator.paginate_queryset(reviews, request)
+        serializer = RecipeRatingSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 from difflib import get_close_matches
 
 from django.db import models
