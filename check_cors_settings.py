@@ -6,6 +6,7 @@ Check CORS settings for debugging deployment issues.
 import os
 import sys
 from pathlib import Path
+import requests  # Added for testing endpoints
 
 # Add the project root to the path
 project_root = Path(__file__).resolve().parent
@@ -92,5 +93,91 @@ def check_cors_settings():
     else:
         print("✘ Potential CORS issues detected - review recommendations above")
 
+def test_cors_login_endpoint():
+    """Test CORS configuration on the login endpoint"""
+    print("\n=== Testing CORS on Login Endpoint ===")
+    
+    login_url = "http://localhost:8000/api/token/"  # Update with your actual login URL
+    test_origins = [
+        "https://frontendsmo.vercel.app",
+        "http://localhost:3000",
+        "https://example.com"
+    ]
+    
+    for origin in test_origins:
+        response = requests.post(
+            login_url,
+            headers={
+                "Origin": origin,
+                "Content-Type": "application/json"
+            },
+            json={
+                "username": "testuser",
+                "password": "testpass"
+            },
+            allow_redirects=False
+        )
+        
+        print(f"Origin: {origin} - Status Code: {response.status_code}")
+        if response.status_code == 200:
+            print("  ✓ CORS headers present")
+        else:
+            print("  ✘ CORS headers missing or incorrect")
+
+def test_cors_endpoints():
+    """Test CORS headers on critical endpoints"""
+    print("\n=== CORS Endpoint Testing ===")
+    
+    # Backend URLs to test
+    backend_urls = [
+        'https://njoya.pythonanywhere.com',
+    ]
+    
+    # Frontend origin to simulate
+    frontend_origin = 'https://frontendsmo.vercel.app'
+    
+    # Endpoints to test
+    endpoints = [
+        '/api/users/login/',
+        '/api/dj-rest-auth/login/',
+        '/api/recipes/'
+    ]
+    
+    for backend_url in backend_urls:
+        print(f"\nTesting CORS on {backend_url}")
+        
+        for endpoint in endpoints:
+            full_url = f"{backend_url}{endpoint}"
+            print(f"\nEndpoint: {endpoint}")
+            
+            # Test preflight OPTIONS request
+            print("1. Testing OPTIONS request (preflight):")
+            try:
+                headers = {
+                    'Origin': frontend_origin,
+                    'Access-Control-Request-Method': 'POST',
+                    'Access-Control-Request-Headers': 'Content-Type, Authorization'
+                }
+                
+                options_response = requests.options(
+                    full_url,
+                    headers=headers,
+                    timeout=5
+                )
+                
+                print(f"  Status Code: {options_response.status_code}")
+                cors_headers = {k: v for k, v in options_response.headers.items() if k.lower().startswith('access-control')}
+                if cors_headers:
+                    print("  CORS Headers Present:")
+                    for header, value in cors_headers.items():
+                        print(f"    - {header}: {value}")
+                else:
+                    print("  ❌ No CORS headers found in response")
+                    
+            except requests.exceptions.RequestException as e:
+                print(f"  ❌ Error during OPTIONS request: {str(e)}")
+
 if __name__ == "__main__":
     check_cors_settings()
+    test_cors_login_endpoint()
+    test_cors_endpoints()

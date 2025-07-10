@@ -45,7 +45,7 @@ class UserLoginView(APIView):
         if serializer.is_valid():
             user = serializer.validated_data['user']
             token, created = Token.objects.get_or_create(user=user) # Get or create a token for the user
-            return Response({
+            response = Response({
                 'message': 'Login successful.',
                 'token': token.key,
                 'user_id': user.pk,
@@ -54,7 +54,24 @@ class UserLoginView(APIView):
                 'role': user.role,
                 'is_verified_contributor': user.is_verified_contributor
             }, status=status.HTTP_200_OK)
+            
+            # Add explicit CORS headers
+            response["Access-Control-Allow-Origin"] = "https://frontendsmo.vercel.app"
+            response["Access-Control-Allow-Credentials"] = "true"
+            response["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+            response["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+            
+            return response
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    def options(self, request, *args, **kwargs):
+        """Handle preflight OPTIONS requests"""
+        response = Response(status=status.HTTP_200_OK)
+        response["Access-Control-Allow-Origin"] = "https://frontendsmo.vercel.app"
+        response["Access-Control-Allow-Credentials"] = "true"
+        response["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        return response
     
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated] # <--- This ensures only logged-in users can access
