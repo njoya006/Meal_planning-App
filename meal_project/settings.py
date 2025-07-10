@@ -221,9 +221,9 @@ CORS_ALLOWED_ORIGINS = [
     "https://njoya.pythonanywhere.com",
 ]
 
-# For development or debugging purposes, you can uncomment this for local testing only
-# DO NOT use in production as it's a security risk
-# CORS_ALLOW_ALL_ORIGINS = True
+# Temporarily enabled for frontend compatibility while proper CORS configuration is deployed
+# TODO: Remove this and rely on specific origins once properly deployed to PythonAnywhere
+CORS_ALLOW_ALL_ORIGINS = True
 
 # Allow requests from any subdomain of vercel.app
 CORS_ALLOWED_ORIGIN_REGEXES = [
