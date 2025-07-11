@@ -33,8 +33,6 @@ class RecipeReviewsView(APIView):
         try:
             recipe = Recipe.objects.get(pk=pk)
         except Recipe.DoesNotExist:
-            from rest_framework.response import Response
-            from rest_framework import status
             return Response({'detail': 'Recipe not found.'}, status=status.HTTP_404_NOT_FOUND)
 
         data = request.data.copy()
@@ -42,7 +40,6 @@ class RecipeReviewsView(APIView):
         serializer = RecipeRatingCreateSerializer(data=data, context={'request': request})
         if serializer.is_valid():
             rating = serializer.save()
-            from .serializers import RecipeRatingSerializer
             return Response(RecipeRatingSerializer(rating).data, status=201)
         return Response(serializer.errors, status=400)
 from difflib import get_close_matches
