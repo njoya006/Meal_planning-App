@@ -77,6 +77,26 @@ from .serializers import (
 )
 
 class RecipeViewSet(viewsets.ModelViewSet):
+    @action(detail=True, methods=['get'], url_path='user-review', permission_classes=[IsAuthenticated])
+    def user_review(self, request, pk=None):
+        """Return the current user's review for a recipe."""
+        recipe = self.get_object()
+        user = request.user
+        review = RecipeRating.objects.filter(user=user, recipe=recipe).first()
+        if review:
+            serializer = RecipeRatingSerializer(review)
+            return Response(serializer.data)
+        return Response({'detail': 'No review found for this user.'}, status=404)
+
+    @action(detail=True, methods=['get'], url_path='user-rating', permission_classes=[IsAuthenticated])
+    def user_rating(self, request, pk=None):
+        """Return the current user's rating for a recipe."""
+        recipe = self.get_object()
+        user = request.user
+        rating = RecipeRating.objects.filter(user=user, recipe=recipe).first()
+        if rating:
+            return Response({'rating': rating.rating})
+        return Response({'detail': 'No rating found for this user.'}, status=404)
     queryset = Recipe.objects.filter(is_active=True).order_by('-created_at')
     serializer_class = RecipeSerializer
     parser_classes = [MultiPartParser, FormParser, JSONParser]  # Support file uploads
