@@ -182,14 +182,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
         ]
 
     def get_profile_photo(self, obj):
-        """Return the full URL for the profile photo."""
+        """Return the full URL for the profile photo, or a default if missing."""
         if obj.profile_photo:
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.profile_photo.url)
             else:
                 return obj.profile_photo.url
-        return None
+        # Always return a default image if no photo
+        request = self.context.get('request')
+        default_url = '/images/default-user.jpg'
+        if request:
+            return request.build_absolute_uri(default_url)
+        return default_url
 
     def get_dietary_preferences(self, obj):
         """Return dietary preferences as a list."""
