@@ -77,6 +77,29 @@ from .serializers import (
 )
 
 class RecipeViewSet(viewsets.ModelViewSet):
+    @action(detail=True, methods=['post'], url_path='add-review', permission_classes=[IsAuthenticated])
+    def add_review(self, request, pk=None):
+        """Allow authenticated users to add a review for a recipe."""
+        recipe = self.get_object()
+        data = request.data.copy()
+        data['recipe'] = recipe.id
+        serializer = RecipeRatingCreateSerializer(data=data, context={'request': request})
+        if serializer.is_valid():
+            rating = serializer.save()
+            return Response(RecipeRatingSerializer(rating).data, status=201)
+        return Response(serializer.errors, status=400)
+
+    @action(detail=True, methods=['post'], url_path='rate-recipe', permission_classes=[IsAuthenticated])
+    def rate_recipe(self, request, pk=None):
+        """Allow authenticated users to rate a recipe (rating only, no review)."""
+        recipe = self.get_object()
+        data = request.data.copy()
+        data['recipe'] = recipe.id
+        serializer = RecipeRatingCreateSerializer(data=data, context={'request': request})
+        if serializer.is_valid():
+            rating = serializer.save()
+            return Response(RecipeRatingSerializer(rating).data, status=201)
+        return Response(serializer.errors, status=400)
     @action(detail=True, methods=['get'], url_path='user-review', permission_classes=[IsAuthenticated])
     def user_review(self, request, pk=None):
         """Return the current user's review for a recipe."""
