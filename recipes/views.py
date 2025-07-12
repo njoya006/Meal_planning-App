@@ -77,6 +77,37 @@ from .serializers import (
 )
 
 class RecipeViewSet(viewsets.ModelViewSet):
+    @action(detail=False, methods=['post'], url_path='suggest-by-budget', permission_classes=[IsAuthenticatedOrReadOnly])
+    def suggest_by_budget(self, request):
+        """Suggest recipes based on user budget. Does not disrupt ingredient-based suggestions."""
+        # Handle both DRF requests and raw Django requests for testing
+        if hasattr(request, 'data'):
+            budget = request.data.get('budget')
+        else:
+            # Fallback for test requests
+            import json
+            try:
+                if hasattr(request, 'body'):
+                    data = json.loads(request.body.decode('utf-8'))
+                    budget = data.get('budget')
+                else:
+                    budget = request.POST.get('budget')
+            except (json.JSONDecodeError, AttributeError):
+                budget = None
+        
+        if budget is None:
+            return Response({'error': 'Budget is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            budget = float(budget)
+        except (TypeError, ValueError):
+            return Response({'error': 'Budget must be a number.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Assuming Recipe model has an 'estimated_cost' field
+        from django.db.models import Q
+        # Include recipes with missing cost (estimated_cost is null) as well as those within budget
+        recipes = Recipe.objects.filter(Q(estimated_cost__lte=budget) | Q(estimated_cost__isnull=True), is_active=True)
+        serializer = self.get_serializer(recipes, many=True)
+        return Response({'suggested_recipes': serializer.data, 'info': f'Recipes under budget {budget} francs.'}, status=status.HTTP_200_OK)
     @action(detail=True, methods=['post'], url_path='add-review', permission_classes=[IsAuthenticated])
     def add_review(self, request, pk=None):
         """Allow authenticated users to add a review for a recipe."""
@@ -146,7 +177,20 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], url_path='suggest-by-ingredients')
     def suggest_by_ingredients(self, request):
-        ingredient_names = request.data.get('ingredient_names', [])
+        # Handle both DRF requests and raw Django requests for testing
+        if hasattr(request, 'data'):
+            ingredient_names = request.data.get('ingredient_names', [])
+        else:
+            # Fallback for test requests
+            import json
+            try:
+                if hasattr(request, 'body'):
+                    data = json.loads(request.body.decode('utf-8'))
+                    ingredient_names = data.get('ingredient_names', [])
+                else:
+                    ingredient_names = request.POST.getlist('ingredient_names')
+            except (json.JSONDecodeError, AttributeError):
+                ingredient_names = []
         if not isinstance(ingredient_names, list) or len(ingredient_names) < 4:
             return Response({'error': 'Please provide at least 4 ingredient names.'}, status=400)
         # Normalize input

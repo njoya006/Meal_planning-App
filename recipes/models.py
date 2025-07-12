@@ -198,6 +198,7 @@ UNIT_CHOICES = [
 ]
 
 class Recipe(models.Model):
+    estimated_cost = models.DecimalField(_('Estimated Cost'), max_digits=8, decimal_places=2, null=True, blank=True, help_text=_('Estimated total cost of ingredients for this recipe in francs'))
     contributor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

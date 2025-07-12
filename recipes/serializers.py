@@ -130,7 +130,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             'prep_time', 'cook_time', 'servings', 'created_at', 'updated_at', 'ingredients',
             'ingredients_data', 'approved', 'feedback', 'slug', 'is_active', 'difficulty', 'source',
             'categories', 'category_names', 'cuisines', 'cuisine_names', 'tags', 'tag_names', 'image', 'image_upload',
-            'average_rating', 'rating_count', 'like_count', 'comment_count'
+            'average_rating', 'rating_count', 'like_count', 'comment_count', 'estimated_cost'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'contributor', 'approved', 'feedback', 'categories', 'cuisines', 'tags']
 
