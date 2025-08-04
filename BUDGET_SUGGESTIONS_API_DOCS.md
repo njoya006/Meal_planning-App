@@ -75,7 +75,86 @@ The ChopSmo application now supports **budget-based recipe suggestions** alongsi
   ```
 - **Note:** Minimum 4 ingredients required
 
-### 3. **Create Recipe with Optional Cost**
+### 3. **Search Recipes by Name**
+- **URL:** `GET /api/recipes/search/?name=<search_term>`
+- **Description:** Search for recipes by name (partial matching, case-insensitive)
+- **Authentication:** **Required** - Token authentication
+- **Headers:** `Authorization: Token <user_token>`
+- **Query Parameters:**
+  - `name` (required): The name or partial name to search for
+- **Example Request:** `GET /api/recipes/search/?name=chicken`
+- **Response Example:**
+  ```json
+  {
+    "count": 2,
+    "results": [
+      {
+        "id": 1,
+        "title": "Budget Chicken Rice",
+        "description": "A simple budget-friendly chicken rice dish",
+        "estimated_cost": "10.50",
+        "servings": 4,
+        "prep_time": 20,
+        "cook_time": 30,
+        "difficulty": "easy",
+        "contributor": {
+          "username": "chef_user",
+          "is_verified_contributor": true
+        }
+      },
+      {
+        "id": 7,
+        "title": "Chicken Curry",
+        "description": "Spicy chicken curry",
+        "estimated_cost": "18.00",
+        "servings": 6,
+        "prep_time": 15,
+        "cook_time": 45,
+        "difficulty": "medium",
+        "contributor": {...}
+      }
+    ],
+    "message": "Found 2 recipe(s) matching \"chicken\""
+  }
+  ```
+
+### 4. **Get Recipe by Exact Name**
+- **URL:** `GET /api/recipes/by-name/<recipe-name>/`
+- **Description:** Get a specific recipe by its exact name (case-insensitive)
+- **Authentication:** **Required** - Token authentication
+- **Headers:** `Authorization: Token <user_token>`
+- **URL Format:** Replace spaces with hyphens in the recipe name
+- **Example Request:** `GET /api/recipes/by-name/chicken-curry/`
+- **Response Example:**
+  ```json
+  {
+    "id": 7,
+    "title": "Chicken Curry",
+    "description": "Spicy chicken curry with aromatic spices",
+    "instructions": "1. Heat oil in pan...",
+    "estimated_cost": "18.00",
+    "servings": 6,
+    "prep_time": 15,
+    "cook_time": 45,
+    "difficulty": "medium",
+    "ingredients": [
+      {
+        "ingredient": {"id": 1, "name": "Chicken"},
+        "quantity": 800,
+        "unit": "g",
+        "preparation": "cut into pieces"
+      }
+    ],
+    "contributor": {
+      "username": "spice_master",
+      "is_verified_contributor": true
+    },
+    "categories": [{"id": 1, "name": "Main Course"}],
+    "image": "https://example.com/chicken-curry.jpg"
+  }
+  ```
+
+### 5. **Create Recipe with Optional Cost**
 - **URL:** `POST /api/recipes/`
 - **Description:** Create a new recipe with optional estimated cost
 - **Authentication:** Required (verified contributors only)
@@ -110,13 +189,13 @@ The ChopSmo application now supports **budget-based recipe suggestions** alongsi
   }
   ```
 
-### 4. **Get All Recipes**
+### 6. **Get All Recipes**
 - **URL:** `GET /api/recipes/`
 - **Description:** Get all active recipes (includes estimated_cost field)
 - **Authentication:** **Required** - Token authentication
 - **Headers:** `Authorization: Token <user_token>`
 
-### 5. **Update Recipe**
+### 7. **Update Recipe**
 - **URL:** `PUT /api/recipes/{id}/` or `PATCH /api/recipes/{id}/`
 - **Description:** Update existing recipe (can add/modify estimated_cost)
 - **Authentication:** Required (recipe owner or admin)

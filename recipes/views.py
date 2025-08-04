@@ -108,6 +108,54 @@ class RecipeViewSet(viewsets.ModelViewSet):
         recipes = Recipe.objects.filter(Q(estimated_cost__lte=budget) | Q(estimated_cost__isnull=True), is_active=True)
         serializer = self.get_serializer(recipes, many=True)
         return Response({'suggested_recipes': serializer.data, 'info': f'Recipes under budget {budget} francs.'}, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'], url_path='search', permission_classes=[IsAuthenticatedOrReadOnly])
+    def search_by_name(self, request):
+        """Search recipes by name - allows users to find recipes without knowing the ID."""
+        recipe_name = request.query_params.get('name', '').strip()
+        if not recipe_name:
+            return Response({'error': 'Please provide a recipe name to search for.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Search for recipes with names containing the search term (case-insensitive)
+        recipes = Recipe.objects.filter(
+            title__icontains=recipe_name, 
+            is_active=True
+        ).order_by('title')
+        
+        if not recipes.exists():
+            return Response({
+                'count': 0,
+                'results': [],
+                'message': f'No recipes found matching "{recipe_name}"'
+            }, status=status.HTTP_200_OK)
+        
+        # Return basic recipe info for search results
+        serializer = self.get_serializer(recipes, many=True)
+        return Response({
+            'count': recipes.count(),
+            'results': serializer.data,
+            'message': f'Found {recipes.count()} recipe(s) matching "{recipe_name}"'
+        }, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'], url_path='by-name/(?P<recipe_name>[^/.]+)', permission_classes=[IsAuthenticatedOrReadOnly])
+    def get_by_name(self, request, recipe_name=None):
+        """Get a specific recipe by its exact name (case-insensitive)."""
+        if not recipe_name:
+            return Response({'error': 'Recipe name is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Decode URL-encoded name and replace hyphens with spaces
+        recipe_name = recipe_name.replace('-', ' ').strip()
+        
+        try:
+            recipe = Recipe.objects.get(title__iexact=recipe_name, is_active=True)
+            serializer = self.get_serializer(recipe)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Recipe.DoesNotExist:
+            return Response({
+                'error': f'Recipe with name "{recipe_name}" not found.',
+                'suggestion': 'Try using the search endpoint: /api/recipes/search/?name=your-recipe-name'
+            }, status=status.HTTP_404_NOT_FOUND)
+    
     @action(detail=True, methods=['post'], url_path='add-review', permission_classes=[IsAuthenticated])
     def add_review(self, request, pk=None):
         """Allow authenticated users to add a review for a recipe."""
