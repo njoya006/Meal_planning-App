@@ -8,6 +8,11 @@ class RecipeReviewPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 20
 
+class SearchPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
 class RecipeReviewsView(APIView):
     def get_permissions(self):
         # Allow any for GET, require auth for POST
@@ -111,118 +116,51 @@ class RecipeViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'], url_path='search', permission_classes=[IsAuthenticatedOrReadOnly])
     def search_by_name(self, request):
-        """Search recipes by name - allows users to find recipes without knowing the ID."""
+        """Search recipes by title, description, ingredient, tag or cuisine. Returns paginated results and helpful suggestions when no matches found."""
         recipe_name = request.query_params.get('name', '').strip()
         if not recipe_name:
             return Response({'error': 'Please provide a recipe name to search for.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Search for recipes with names containing the search term (case-insensitive)
-        recipes = Recipe.objects.filter(
-            title__icontains=recipe_name, 
+
+        from django.db.models import Q
+
+        # Search across multiple related fields (case-insensitive)
+        queryset = Recipe.objects.filter(
+            Q(title__icontains=recipe_name) |
+            Q(description__icontains=recipe_name) |
+            Q(ingredients__name__icontains=recipe_name) |
+            Q(tags__name__icontains=recipe_name) |
+            Q(cuisines__name__icontains=recipe_name),
             is_active=True
-        ).order_by('title')
-        
-        if not recipes.exists():
+        ).distinct().order_by('title')
+
+        # Paginate results to avoid huge responses
+        paginator = SearchPagination()
+        page = paginator.paginate_queryset(queryset, request)
+
+        if not queryset.exists():
+            # Provide fuzzy suggestions based on active recipe titles
+            all_titles = list(Recipe.objects.filter(is_active=True).values_list('title', flat=True))
+            # Use lowercase list for matching but return original-case titles
+            lower_titles = [t.lower() for t in all_titles]
+            suggestions_lower = get_close_matches(recipe_name.lower(), lower_titles, n=5, cutoff=0.6)
+            suggestions = []
+            for s in suggestions_lower:
+                # map back to original casing (first match)
+                for orig in all_titles:
+                    if orig.lower() == s:
+                        suggestions.append(orig)
+                        break
+
             return Response({
                 'count': 0,
                 'results': [],
-                'message': f'No recipes found matching "{recipe_name}"'
+                'message': f'No recipes found matching "{recipe_name}"',
+                'suggestions': suggestions
             }, status=status.HTTP_200_OK)
-        
-        # Return basic recipe info for search results
-        serializer = self.get_serializer(recipes, many=True)
-        return Response({
-            'count': recipes.count(),
-            'results': serializer.data,
-            'message': f'Found {recipes.count()} recipe(s) matching "{recipe_name}"'
-        }, status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
     
-    @action(detail=False, methods=['get'], url_path='by-name/(?P<recipe_name>[^/.]+)', permission_classes=[IsAuthenticatedOrReadOnly])
-    def get_by_name(self, request, recipe_name=None):
-        """Get a specific recipe by its exact name (case-insensitive)."""
-        if not recipe_name:
-            return Response({'error': 'Recipe name is required.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Decode URL-encoded name and replace hyphens with spaces
-        recipe_name = recipe_name.replace('-', ' ').strip()
-        
-        try:
-            recipe = Recipe.objects.get(title__iexact=recipe_name, is_active=True)
-            serializer = self.get_serializer(recipe)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Recipe.DoesNotExist:
-            return Response({
-                'error': f'Recipe with name "{recipe_name}" not found.',
-                'suggestion': 'Try using the search endpoint: /api/recipes/search/?name=your-recipe-name'
-            }, status=status.HTTP_404_NOT_FOUND)
-    
-    @action(detail=True, methods=['post'], url_path='add-review', permission_classes=[IsAuthenticated])
-    def add_review(self, request, pk=None):
-        """Allow authenticated users to add a review for a recipe."""
-        recipe = self.get_object()
-        data = request.data.copy()
-        data['recipe'] = recipe.id
-        serializer = RecipeRatingCreateSerializer(data=data, context={'request': request})
-        if serializer.is_valid():
-            rating = serializer.save()
-            return Response(RecipeRatingSerializer(rating).data, status=201)
-        return Response(serializer.errors, status=400)
-
-    @action(detail=True, methods=['post'], url_path='rate-recipe', permission_classes=[IsAuthenticated])
-    def rate_recipe(self, request, pk=None):
-        """Allow authenticated users to rate a recipe (rating only, no review)."""
-        recipe = self.get_object()
-        data = request.data.copy()
-        data['recipe'] = recipe.id
-        serializer = RecipeRatingCreateSerializer(data=data, context={'request': request})
-        if serializer.is_valid():
-            rating = serializer.save()
-            return Response(RecipeRatingSerializer(rating).data, status=201)
-        return Response(serializer.errors, status=400)
-    @action(detail=True, methods=['get'], url_path='user-review', permission_classes=[IsAuthenticated])
-    def user_review(self, request, pk=None):
-        """Return the current user's review for a recipe."""
-        recipe = self.get_object()
-        user = request.user
-        review = RecipeRating.objects.filter(user=user, recipe=recipe).first()
-        if review:
-            serializer = RecipeRatingSerializer(review)
-            return Response(serializer.data)
-        return Response({'detail': 'No review found for this user.'}, status=404)
-
-    @action(detail=True, methods=['get'], url_path='user-rating', permission_classes=[IsAuthenticated])
-    def user_rating(self, request, pk=None):
-        """Return the current user's rating for a recipe."""
-        recipe = self.get_object()
-        user = request.user
-        rating = RecipeRating.objects.filter(user=user, recipe=recipe).first()
-        if rating:
-            return Response({'rating': rating.rating})
-        return Response({'detail': 'No rating found for this user.'}, status=404)
-    queryset = Recipe.objects.filter(is_active=True).order_by('-created_at')
-    serializer_class = RecipeSerializer
-    parser_classes = [MultiPartParser, FormParser, JSONParser]  # Support file uploads
-
-    # Permission configuration:
-    # - IsAuthenticatedOrReadOnly: Allows unauthenticated users to read (GET), but requires authentication for others.
-    # - IsVerifiedContributor: Further restricts write operations to only verified contributors.
-    permission_classes = [IsAuthenticatedOrReadOnly, IsVerifiedContributor]
-
-    @method_decorator(cache_page(60 * 5), name='list')  # Cache list endpoint for 5 minutes
-    @method_decorator(cache_page(60 * 10), name='retrieve')  # Cache detail endpoint for 10 minutes
-    def dispatch(self, *args, **kwargs):
-        return super().dispatch(*args, **kwargs)
-
-    def perform_create(self, serializer):
-        # Automatically set the contributor and audit fields to the current authenticated user
-        user = self.request.user if self.request.user.is_authenticated else None
-        serializer.save(contributor=user)
-
-    def perform_update(self, serializer):
-        # Update audit fields on update
-        user = self.request.user if self.request.user.is_authenticated else None
-        serializer.save(contributor=user)
-
     @action(detail=False, methods=['post'], url_path='suggest-by-ingredients')
     def suggest_by_ingredients(self, request):
         # Handle both DRF requests and raw Django requests for testing
