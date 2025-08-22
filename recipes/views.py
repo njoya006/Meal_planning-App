@@ -82,6 +82,10 @@ from .serializers import (
 )
 
 class RecipeViewSet(viewsets.ModelViewSet):
+    # Provide a default queryset and serializer so DRF can serve list/retrieve endpoints
+    queryset = Recipe.objects.filter(is_active=True).order_by('-created_at')
+    serializer_class = RecipeSerializer
+
     @action(detail=False, methods=['post'], url_path='suggest-by-budget', permission_classes=[IsAuthenticatedOrReadOnly])
     def suggest_by_budget(self, request):
         """Suggest recipes based on user budget. Does not disrupt ingredient-based suggestions."""
