@@ -5,6 +5,11 @@ from .views import (
     VerificationApplicationView, VerificationApplicationListView,
     VerificationApplicationReviewView, VerificationStatusView
 )
+from rest_framework import routers
+from .views import UserViewSet
+
+router = routers.DefaultRouter()
+router.register(r'', UserViewSet, basename='user')
 
 urlpatterns = [
     path('register/', UserRegistrationView.as_view(), name='user-registration'),
@@ -24,4 +29,9 @@ urlpatterns = [
     path('verification/status/', VerificationStatusView.as_view(), name='verification-status'),
     path('verification/admin/applications/', VerificationApplicationListView.as_view(), name='admin-applications'),
     path('verification/admin/review/<int:application_id>/', VerificationApplicationReviewView.as_view(), name='admin-review'),
+]
+
+# Router provides /api/users/  and /api/users/<id>/  and /api/users/me/
+urlpatterns += [
+    path('', include(router.urls)),
 ]

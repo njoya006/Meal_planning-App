@@ -18,6 +18,9 @@ import requests
 from django.contrib.auth import get_user_model
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from rest_framework import viewsets, permissions
+from rest_framework.decorators import action
+from rest_framework.response import Response
 
 class UserRegistrationView(APIView):
     permission_classes = []  # AllowAny by default
@@ -371,3 +374,30 @@ class VerificationStatusView(APIView):
         }
         
         return Response(response_data)
+
+
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only viewset exposing list/detail endpoints and a /me/ action.
+
+    This provides compatibility for mobile clients that expect:
+      - GET /api/users/           (list, optionally ?username=...)
+      - GET /api/users/{id}/      (retrieve)
+      - GET /api/users/me/        (current authenticated user)
+    """
+    queryset = CustomUser.objects.filter(is_active=True).order_by('username')
+    serializer_class = UserProfileSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        username = self.request.query_params.get('username')
+        if username:
+            # allow lookup by exact username (case-insensitive)
+            qs = qs.filter(username__iexact=username)
+        return qs
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def me(self, request):
+        """Return the current authenticated user's profile at /api/users/me/"""
+        serializer = self.get_serializer(request.user, context={'request': request})
+        return Response(serializer.data)
