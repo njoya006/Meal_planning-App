@@ -34,5 +34,6 @@ urlpatterns = [
     path('api/planner/', include('planner.urls')),
     path('api/recipes/', include('recipes.urls')),
     path('api/', include('api.urls')),
+    path('billing/', include('billing.urls')),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
