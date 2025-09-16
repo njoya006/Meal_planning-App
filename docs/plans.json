@@ -1,0 +1,28 @@
+{
+  "plans": [
+    {
+      "id": "pro_monthly",
+      "title": "Pro",
+      "interval": "monthly",
+      "price": 9.99,
+      "currency": "USD",
+      "description": "Full access to premium features.",
+      "features": ["Unlimited recipe saves", "Advanced meal planner", "Priority support"],
+      "recommended": true,
+      "trial_days": 7,
+      "metadata": { "provider_plan_id": "price_abc" }
+    },
+    {
+      "id": "starter_monthly",
+      "title": "Starter",
+      "interval": "monthly",
+      "price": 3.99,
+      "currency": "USD",
+      "description": "Basic access with limits.",
+      "features": ["Save recipes (limited)", "Basic meal planner"],
+      "recommended": false,
+      "trial_days": 0,
+      "metadata": { "provider_plan_id": "price_def" }
+    }
+  ]
+}

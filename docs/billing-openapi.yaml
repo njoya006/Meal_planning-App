@@ -1,0 +1,228 @@
+openapi: 3.0.3
+info:
+  title: ChopSmo Billing API (minimal)
+  version: 1.0.0
+  description: Minimal OpenAPI spec for frontend/backend billing contract (plans, checkout, subscription, webhooks).
+servers:
+  - url: https://staging.api.example.com
+    description: Staging
+  - url: https://api.example.com
+    description: Production
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Token
+  schemas:
+    Plan:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        interval:
+          type: string
+          enum: [daily, weekly, monthly, yearly]
+        price:
+          type: number
+          format: float
+        currency:
+          type: string
+        description:
+          type: string
+        features:
+          type: array
+          items:
+            type: string
+        recommended:
+          type: boolean
+        trial_days:
+          type: integer
+        metadata:
+          type: object
+    PlansResponse:
+      type: object
+      properties:
+        plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/Plan'
+    CheckoutCreateRequest:
+      type: object
+      properties:
+        plan_id:
+          type: string
+        coupon_code:
+          type: string
+      required: [plan_id]
+    CheckoutCreateResponse:
+      type: object
+      properties:
+        checkoutUrl:
+          type: string
+        sessionId:
+          type: string
+    Subscription:
+      type: object
+      properties:
+        subscription_id:
+          type: string
+        plan_id:
+          type: string
+        status:
+          type: string
+        current_period_end:
+          type: string
+          format: date-time
+        cancel_at_period_end:
+          type: boolean
+        entitlements:
+          type: array
+          items:
+            type: string
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+paths:
+  /api/plans:
+    get:
+      summary: List available plans
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlansResponse'
+  /api/plans/{plan_id}:
+    get:
+      summary: Get plan detail
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plan'
+  /api/checkout/create:
+    post:
+      summary: Create checkout session
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutCreateRequest'
+      responses:
+        '200':
+          description: Checkout created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutCreateResponse'
+        '402':
+          description: Payment required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/purchase/complete:
+    post:
+      summary: Confirm purchase after redirect
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: false
+      responses:
+        '200':
+          description: Subscription state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+  /api/me/subscription:
+    get:
+      summary: Get current user's subscription
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '401':
+          description: Unauthorized
+  /api/subscription/cancel:
+    post:
+      summary: Cancel a subscription
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                subscription_id:
+                  type: string
+      responses:
+        '200':
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+  /api/test/grant-entitlement:
+    post:
+      summary: Grant entitlement for testing (admin/test-only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: string
+                plan_id:
+                  type: string
+      responses:
+        '200':
+          description: Granted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+  /api/webhooks/payment:
+    post:
+      summary: Webhook receiver for payment provider
+      description: |-
+        The server must verify the webhook signature. Webhooks are processed idempotently.
+      requestBody:
+        required: true
+      responses:
+        '200':
+          description: Handled
+security:
+  - BearerAuth: []

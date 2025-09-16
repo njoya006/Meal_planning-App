@@ -65,7 +65,7 @@ from .bad_ingredients import (
     get_bad_ingredient_categories, 
     get_ingredient_substitutions
 )
-from .models import Recipe, Ingredient, Category, Cuisine, Tag, RecipeRating, RecipeLike, RecipeComment
+from .models import Recipe, Ingredient, Category, Cuisine, Tag, RecipeRating, RecipeLike, RecipeComment, LiveSession, LiveChatMessage
 from .permissions import IsVerifiedContributor
 from .serializers import (
     RecipeSerializer, 
@@ -79,12 +79,111 @@ from .serializers import (
     RecipeLikeCreateSerializer,
     RecipeCommentSerializer,
     RecipeCommentCreateSerializer
+    , LiveSessionSerializer, LiveChatMessageSerializer
 )
 
 class RecipeViewSet(viewsets.ModelViewSet):
     # Provide a default queryset and serializer so DRF can serve list/retrieve endpoints
     queryset = Recipe.objects.filter(is_active=True).order_by('-created_at')
     serializer_class = RecipeSerializer
+    # Allow multipart form uploads (images) in create/update
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        # Allow anyone to read. Require verified contributor for unsafe methods.
+        if self.request.method in permissions.SAFE_METHODS:
+            return [permissions.AllowAny()]
+        return [IsVerifiedContributor()]
+
+
+class LiveSessionViewSet(viewsets.ModelViewSet):
+    """API for creating and controlling live cooking sessions.
+
+    Note: This only manages metadata and permissions. Use a media server (RTMP/WebRTC)
+    for actual video streaming and Django Channels or a websocket service for chat.
+    """
+    queryset = LiveSession.objects.all().order_by('-created_at')
+    serializer_class = LiveSessionSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_permissions(self):
+        # Anyone can list/view; only verified contributors can start/stop sessions
+        if self.action in ['create', 'start', 'stop']:
+            return [IsVerifiedContributor()]
+        return super().get_permissions()
+
+    @action(detail=True, methods=['post'])
+    def start(self, request, pk=None):
+        session = self.get_object()
+        if session.host != request.user:
+            return Response({'error': 'Only the host can start the session.'}, status=status.HTTP_403_FORBIDDEN)
+        if session.is_live:
+            return Response({'detail': 'Session already live.'}, status=status.HTTP_400_BAD_REQUEST)
+        from django.utils import timezone
+        session.is_live = True
+        session.started_at = timezone.now()
+        session.viewer_count = 0
+        session.save()
+        return Response(self.get_serializer(session).data)
+
+    @action(detail=True, methods=['post'])
+    def stop(self, request, pk=None):
+        session = self.get_object()
+        if session.host != request.user:
+            return Response({'error': 'Only the host can stop the session.'}, status=status.HTTP_403_FORBIDDEN)
+        if not session.is_live:
+            return Response({'detail': 'Session is not live.'}, status=status.HTTP_400_BAD_REQUEST)
+        from django.utils import timezone
+        session.is_live = False
+        session.ended_at = timezone.now()
+        session.save()
+        return Response(self.get_serializer(session).data)
+
+    @action(detail=True, methods=['post'])
+    def join(self, request, pk=None):
+        # In a real implementation, joining returns an access token or websocket URL
+        session = self.get_object()
+        # Increment viewer count — in practice this should be handled by realtime layer
+        session.viewer_count = models.F('viewer_count') + 1
+        session.save()
+        session.refresh_from_db()
+        return Response({'detail': 'Joined', 'viewer_count': session.viewer_count, 'stream_key': session.stream_key})
+
+    @action(detail=True, methods=['post'])
+    def token(self, request, pk=None):
+        """Issue a short-lived signed viewer token for playback (MVP)."""
+        session = self.get_object()
+        import jwt, time
+        secret = getattr(__import__('django.conf').conf.settings, 'SECRET_KEY')
+        payload = {
+            'session_id': session.id,
+            'session_slug': session.slug,
+            'exp': int(time.time()) + 60 * 15,  # 15 minutes
+        }
+        token = jwt.encode(payload, secret, algorithm='HS256')
+        return Response({'token': token})
+
+    @action(detail=True, methods=['post'])
+    def regenerate_key(self, request, pk=None):
+        """Regenerate the stream key (host only)."""
+        session = self.get_object()
+        if session.host != request.user:
+            return Response({'error': 'Only host can regenerate stream key.'}, status=status.HTTP_403_FORBIDDEN)
+        import secrets
+        session.stream_key = secrets.token_urlsafe(32)
+        session.save()
+        return Response({'stream_key': session.stream_key})
+
+
+class LiveChatViewSet(viewsets.ModelViewSet):
+    queryset = LiveChatMessage.objects.all().order_by('created_at')
+    serializer_class = LiveChatMessageSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
     @action(detail=False, methods=['post'], url_path='suggest-by-budget', permission_classes=[IsAuthenticatedOrReadOnly])
     def suggest_by_budget(self, request):

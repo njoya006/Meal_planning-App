@@ -1,0 +1,6 @@
+{
+  "test_users": [
+    { "username": "qa_user", "token": "testtoken_qa_abc123", "entitlements": ["pro_trial"] },
+    { "username": "free_user", "token": "testtoken_free_def456", "entitlements": [] }
+  ]
+}

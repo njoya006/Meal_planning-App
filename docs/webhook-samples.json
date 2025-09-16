@@ -1,0 +1,25 @@
+{
+  "checkout_session_completed": {
+    "type": "checkout.session.completed",
+    "data": {
+      "object": {
+        "id": "cs_test_123",
+        "customer": "cus_abc",
+        "metadata": { "user_id": "123", "plan_id": "pro_monthly" },
+        "payment_status": "paid"
+      }
+    }
+  },
+  "invoice_payment_failed": {
+    "type": "invoice.payment_failed",
+    "data": {
+      "object": {
+        "id": "in_test_456",
+        "customer": "cus_def",
+        "attempt_count": 3,
+        "metadata": { "user_id": "123", "plan_id": "pro_monthly" },
+        "status": "failed"
+      }
+    }
+  }
+}

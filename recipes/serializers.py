@@ -1,6 +1,8 @@
 from rest_framework import serializers
 
 from .models import Recipe, Ingredient, RecipeIngredient, Category, Cuisine, Tag, RecipeRating, RecipeLike, RecipeComment
+from .models import RecipeImage, InstructionStepImage
+from .models import LiveSession, LiveChatMessage
 from users.serializers import UserProfileSerializer
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -122,6 +124,12 @@ class RecipeSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     # Write-only field for image uploads
     image_upload = serializers.ImageField(write_only=True, required=False)
+    # Multiple image support
+    images = serializers.SerializerMethodField()
+    image_uploads = serializers.ListField(child=serializers.ImageField(), write_only=True, required=False)
+    # Per-step images: accept list of {step_index, image, caption}
+    step_images = serializers.SerializerMethodField()
+    step_images_upload = serializers.ListField(child=serializers.DictField(), write_only=True, required=False)
 
     class Meta:
         model = Recipe
@@ -130,7 +138,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             'prep_time', 'cook_time', 'servings', 'created_at', 'updated_at', 'ingredients',
             'ingredients_data', 'approved', 'feedback', 'slug', 'is_active', 'difficulty', 'source',
             'categories', 'category_names', 'cuisines', 'cuisine_names', 'tags', 'tag_names', 'image', 'image_upload',
-            'average_rating', 'rating_count', 'like_count', 'comment_count', 'estimated_cost'
+            'average_rating', 'rating_count', 'like_count', 'comment_count', 'estimated_cost', 'images', 'image_uploads', 'step_images', 'step_images_upload'
         ]
         read_only_fields = ['id', 'created_at', 'updated_at', 'contributor', 'approved', 'feedback', 'categories', 'cuisines', 'tags']
 
@@ -143,6 +151,26 @@ class RecipeSerializer(serializers.ModelSerializer):
             else:
                 return obj.image.url
         return None
+
+    def get_images(self, obj):
+        request = self.context.get('request')
+        images = []
+        for img in getattr(obj, 'images').all():
+            url = img.image.url
+            if request:
+                url = request.build_absolute_uri(url)
+            images.append({'id': img.id, 'url': url, 'caption': img.caption, 'order': img.order})
+        return images
+
+    def get_step_images(self, obj):
+        request = self.context.get('request')
+        images = []
+        for si in getattr(obj, 'step_images').all():
+            url = si.image.url
+            if request:
+                url = request.build_absolute_uri(url)
+            images.append({'id': si.id, 'step_index': si.step_index, 'url': url, 'caption': si.caption})
+        return images
 
     def to_internal_value(self, data):
         """Override to handle ingredients field mapping."""
@@ -165,25 +193,29 @@ class RecipeSerializer(serializers.ModelSerializer):
         return objs
 
     def create(self, validated_data):
-        # Extract ingredients data
+        # Extract ingredients and related lists
         ingredients_data = validated_data.pop('ingredients_data', [])
         category_names = validated_data.pop('category_names', [])
         cuisine_names = validated_data.pop('cuisine_names', [])
         tag_names = validated_data.pop('tag_names', [])
-        
-        # Handle image upload
+
+        # Extract image uploads lists
+        image_uploads = validated_data.pop('image_uploads', [])
+        step_images_upload = validated_data.pop('step_images_upload', [])
+
+        # Handle single image upload (backwards-compatible)
         image_upload = validated_data.pop('image_upload', None)
         if image_upload:
             validated_data['image'] = image_upload
-        
+
         # Look up objects by name
         categories = self._get_objs_by_names(Category, category_names) if category_names else []
         cuisines = self._get_objs_by_names(Cuisine, cuisine_names) if cuisine_names else []
         tags = self._get_objs_by_names(Tag, tag_names) if tag_names else []
-        
+
         # Create the recipe first
         recipe = Recipe.objects.create(**validated_data)
-        
+
         # Set many-to-many relationships
         if categories:
             recipe.categories.set(categories)
@@ -191,33 +223,33 @@ class RecipeSerializer(serializers.ModelSerializer):
             recipe.cuisines.set(cuisines)
         if tags:
             recipe.tags.set(tags)
-        
+
         # Process ingredients with proper context
         ingredient_errors = []
         for i, recipe_ingredient_data in enumerate(ingredients_data):
             # Create individual RecipeIngredient serializer with context
             ingredient_serializer = RecipeIngredientSerializer(
-                data=recipe_ingredient_data, 
+                data=recipe_ingredient_data,
                 context=self.context
             )
-            
+
             if ingredient_serializer.is_valid():
                 # The validate method will create/get the ingredient
                 validated_ingredient_data = ingredient_serializer.validated_data
-                
+
                 ingredient = validated_ingredient_data.pop('ingredient')
                 validated_ingredient_data.pop('ingredient_name', None)
-                
+
                 # Create the RecipeIngredient relationship
                 RecipeIngredient.objects.create(
-                    recipe=recipe, 
-                    ingredient=ingredient, 
+                    recipe=recipe,
+                    ingredient=ingredient,
                     **validated_ingredient_data
                 )
             else:
                 # Collect ingredient validation errors
                 ingredient_errors.append(f"Ingredient {i+1}: {ingredient_serializer.errors}")
-        
+
         # If there were ingredient validation errors, raise them
         if ingredient_errors:
             # Delete the recipe since ingredient creation failed
@@ -225,7 +257,36 @@ class RecipeSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'ingredients': f"Ingredient validation failed: {'; '.join(ingredient_errors)}"
             })
-        
+
+        # Handle multiple recipe image uploads (if any)
+        for idx, img in enumerate(image_uploads):
+            RecipeImage.objects.create(
+                recipe=recipe,
+                image=img,
+                order=idx,
+                uploaded_by=(self.context.get('request').user if self.context.get('request') else None)
+            )
+
+        # Handle per-step image uploads
+        for step_obj in step_images_upload:
+            # Expect dict with step_index and image (and optional caption)
+            try:
+                step_index = int(step_obj.get('step_index'))
+                image = step_obj.get('image')
+            except Exception:
+                continue
+            caption = step_obj.get('caption', '')
+            if step_index and image:
+                InstructionStepImage.objects.update_or_create(
+                    recipe=recipe,
+                    step_index=step_index,
+                    defaults={
+                        'image': image,
+                        'caption': caption,
+                        'uploaded_by': (self.context.get('request').user if self.context.get('request') else None)
+                    }
+                )
+
         return recipe
 
     def update(self, instance, validated_data):
@@ -233,17 +294,19 @@ class RecipeSerializer(serializers.ModelSerializer):
         category_names = validated_data.pop('category_names', None)
         cuisine_names = validated_data.pop('cuisine_names', None)
         tag_names = validated_data.pop('tag_names', None)
-        
-        # Handle image upload
+        image_uploads = validated_data.pop('image_uploads', None)
+        step_images_upload = validated_data.pop('step_images_upload', None)
+
+        # Handle single image upload (backwards-compatible)
         image_upload = validated_data.pop('image_upload', None)
         if image_upload:
             validated_data['image'] = image_upload
-        
+
         # Update basic recipe fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
-        
+
         # Update many-to-many relationships
         if category_names is not None:
             categories = self._get_objs_by_names(Category, category_names)
@@ -254,42 +317,73 @@ class RecipeSerializer(serializers.ModelSerializer):
         if tag_names is not None:
             tags = self._get_objs_by_names(Tag, tag_names)
             instance.tags.set(tags)
-        
+
         # Update ingredients
         if ingredients_data is not None:
             # Delete existing ingredient relationships
             instance.recipeingredient_set.all().delete()
-            
+
             # Create new ingredient relationships
             ingredient_errors = []
             for i, recipe_ingredient_data in enumerate(ingredients_data):
                 # Create individual RecipeIngredient serializer with context
                 ingredient_serializer = RecipeIngredientSerializer(
-                    data=recipe_ingredient_data, 
+                    data=recipe_ingredient_data,
                     context=self.context
                 )
-                
+
                 if ingredient_serializer.is_valid():
                     # The validate method will create/get the ingredient
                     validated_ingredient_data = ingredient_serializer.validated_data
                     ingredient = validated_ingredient_data.pop('ingredient')
                     validated_ingredient_data.pop('ingredient_name', None)
-                    
+
                     # Create the RecipeIngredient relationship
                     RecipeIngredient.objects.create(
-                        recipe=instance, 
-                        ingredient=ingredient, 
+                        recipe=instance,
+                        ingredient=ingredient,
                         **validated_ingredient_data
                     )
                 else:
                     ingredient_errors.append(f"Ingredient {i+1}: {ingredient_serializer.errors}")
-            
+
             # If there were ingredient validation errors, raise them
             if ingredient_errors:
                 raise serializers.ValidationError({
                     'ingredients': f"Ingredient validation failed: {'; '.join(ingredient_errors)}"
                 })
-        
+
+        # Handle new multiple image uploads (append)
+        if image_uploads:
+            existing_count = instance.images.count()
+            for idx, img in enumerate(image_uploads):
+                RecipeImage.objects.create(
+                    recipe=instance,
+                    image=img,
+                    order=existing_count + idx,
+                    uploaded_by=(self.context.get('request').user if self.context.get('request') else None)
+                )
+
+        # Handle per-step image uploads
+        if step_images_upload is not None:
+            for step_obj in step_images_upload:
+                try:
+                    step_index = int(step_obj.get('step_index'))
+                    image = step_obj.get('image')
+                except Exception:
+                    continue
+                caption = step_obj.get('caption', '')
+                if step_index and image:
+                    InstructionStepImage.objects.update_or_create(
+                        recipe=instance,
+                        step_index=step_index,
+                        defaults={
+                            'image': image,
+                            'caption': caption,
+                            'uploaded_by': (self.context.get('request').user if self.context.get('request') else None)
+                        }
+                    )
+
         return instance
 
     def validate(self, data):
@@ -414,3 +508,23 @@ class RecipeCommentCreateSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data['user'] = user
         return super().create(validated_data)
+
+
+class LiveSessionSerializer(serializers.ModelSerializer):
+    host = UserProfileSerializer(read_only=True)
+    host_id = serializers.PrimaryKeyRelatedField(queryset=get_user_model().objects.all(), source='host', write_only=True, required=False)
+
+    class Meta:
+        model = LiveSession
+        fields = ['id', 'host', 'host_id', 'title', 'description', 'slug', 'is_live', 'started_at', 'ended_at', 'stream_key', 'viewer_count', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'slug', 'stream_key', 'viewer_count', 'created_at', 'updated_at']
+
+
+class LiveChatMessageSerializer(serializers.ModelSerializer):
+    user = UserProfileSerializer(read_only=True)
+    user_id = serializers.PrimaryKeyRelatedField(queryset=get_user_model().objects.all(), source='user', write_only=True, required=False)
+
+    class Meta:
+        model = LiveChatMessage
+        fields = ['id', 'session', 'user', 'user_id', 'message', 'created_at']
+        read_only_fields = ['id', 'created_at', 'user']

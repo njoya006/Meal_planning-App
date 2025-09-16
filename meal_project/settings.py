@@ -111,6 +111,10 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'meal_project.wsgi.application'
+# For Channels / ASGI support, set ASGI_APPLICATION to point to the ASGI entrypoint.
+# Create or update meal_project/asgi.py to expose `application` (ProtocolTypeRouter) and
+# ensure your server uses the ASGI entrypoint (daphne/uvicorn) instead of WSGI in that case.
+ASGI_APPLICATION = 'meal_project.asgi.application'
 
 
 # Database
@@ -206,6 +210,17 @@ WHITENOISE_AUTOREFRESH = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.CustomUser'
+
+# Channels configuration (optional). If you enable Channels, configure a channel layer
+# such as Redis and set CHANNEL_LAYERS accordingly. Example below uses a local Redis.
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [('127.0.0.1', 6379)],
+        },
+    }
+}
 
 # meal_project/settings.py
 

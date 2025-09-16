@@ -331,6 +331,53 @@ class Recipe(models.Model):
         self.saves = self.saves or 0   # Keep the existing save count
         self.save(update_fields=['views', 'likes', 'comments', 'saves'])
 
+
+class RecipeImage(models.Model):
+    """Allow multiple images per recipe. Kept simple and ordered."""
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='recipes/images/')
+    caption = models.CharField(max_length=255, blank=True)
+    order = models.PositiveSmallIntegerField(default=0, help_text='Ordering for gallery images')
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='uploaded_recipe_images'
+    )
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f"Image for {self.recipe.title} (#{self.order})"
+
+
+class InstructionStepImage(models.Model):
+    """Optional image attached to a specific instruction step in a recipe.
+
+    Since instructions are stored as free text, we attach the image to a step_index
+    (1-based) so the frontend can map images to steps when rendering.
+    """
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='step_images')
+    step_index = models.PositiveIntegerField(help_text='1-based instruction step index')
+    image = models.ImageField(upload_to='recipes/steps/')
+    caption = models.CharField(max_length=255, blank=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='uploaded_step_images'
+    )
+
+    class Meta:
+        unique_together = ('recipe', 'step_index')
+        ordering = ['step_index']
+
+    def __str__(self):
+        return f"Step {self.step_index} image for {self.recipe.title}"
+
 class RecipeIngredient(models.Model):
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE)
     ingredient = models.ForeignKey(Ingredient, on_delete=models.CASCADE)
@@ -516,3 +563,63 @@ class RecipeComment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.user.username} on {self.recipe.title}"
+
+
+# --- Live streaming MVP models ---
+class LiveSession(models.Model):
+    """Represents a live cooking session started by a verified contributor.
+
+    Note: This model only stores metadata and control flags. Actual video
+    streaming should use a media server (RTMP/WebRTC) or third-party provider.
+    """
+    host = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='live_sessions'
+    )
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    slug = models.SlugField(max_length=255, unique=True, blank=True)
+    is_live = models.BooleanField(default=False)
+    started_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    # Random stream key for RTMP/ingest identification; regenerate as needed
+    stream_key = models.CharField(max_length=64, unique=True, blank=True)
+    viewer_count = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Live: {self.title} by {self.host.username}"
+
+    def save(self, *args, **kwargs):
+        # Create a simple stream_key if not provided
+        if not self.stream_key:
+            import secrets
+            self.stream_key = secrets.token_urlsafe(32)
+        if not self.slug:
+            base = slugify(self.title)[:200]
+            unique = base
+            counter = 1
+            while LiveSession.objects.filter(slug=unique).exclude(pk=self.pk).exists():
+                unique = f"{base}-{counter}"
+                counter += 1
+            self.slug = unique
+        super().save(*args, **kwargs)
+
+
+class LiveChatMessage(models.Model):
+    """Simple chat message attached to a LiveSession. For real-time chat, use Django Channels or a managed WebSocket service."""
+    session = models.ForeignKey(LiveSession, on_delete=models.CASCADE, related_name='chat_messages')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.user.username}: {self.message[:40]}"
