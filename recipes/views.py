@@ -142,6 +142,15 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
             return [IsVerifiedContributor()]
         return super().get_permissions()
 
+    def perform_create(self, serializer):
+        """Ensure the host is set to the requesting user when creating a session."""
+        user = self.request.user if getattr(self.request, 'user', None) and self.request.user.is_authenticated else None
+        if user is not None:
+            serializer.save(host=user)
+        else:
+            # Fallback: allow serializer to raise validation error for missing host
+            serializer.save()
+
     @action(detail=True, methods=['post'])
     def start(self, request, pk=None):
         session = self.get_object()
