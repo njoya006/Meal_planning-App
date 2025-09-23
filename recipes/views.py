@@ -135,6 +135,8 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
     serializer_class = LiveSessionSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+    # Use slug in URLs so clients can address sessions by human-friendly identifier
+    lookup_field = 'slug'
 
     def get_permissions(self):
         # Anyone can list/view; only verified contributors can start/stop sessions
@@ -212,6 +214,26 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
         session.stream_key = secrets.token_urlsafe(32)
         session.save()
         return Response({'stream_key': session.stream_key})
+
+    @action(detail=True, methods=['get'], url_path='messages')
+    def messages(self, request, pk=None):
+        """Return paginated chat history for this live session.
+
+        Accessible at: /api/live-sessions/<slug>/messages/
+        """
+        session = self.get_object()
+        qs = LiveChatMessage.objects.filter(session=session).order_by('created_at')
+
+        # Use the same pagination class as LiveChatViewSet if available
+        paginator_cls = getattr(LiveChatViewSet, 'pagination_class', None)
+        if paginator_cls:
+            paginator = paginator_cls()
+            page = paginator.paginate_queryset(qs, request, view=self)
+            serializer = LiveChatMessageSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
+        serializer = LiveChatMessageSerializer(qs, many=True)
+        return Response(serializer.data)
 
 
 class LiveChatViewSet(viewsets.ModelViewSet):
