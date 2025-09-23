@@ -66,7 +66,7 @@ from .bad_ingredients import (
     get_ingredient_substitutions
 )
 from .models import Recipe, Ingredient, Category, Cuisine, Tag, RecipeRating, RecipeLike, RecipeComment, LiveSession, LiveChatMessage
-from .permissions import IsVerifiedContributor
+from .permissions import IsVerifiedContributor, IsLiveSessionHost
 from .serializers import (
     RecipeSerializer, 
     IngredientSerializer, 
@@ -141,7 +141,7 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         # Anyone can list/view; only verified contributors can start/stop sessions
         if self.action in ['create', 'start', 'stop']:
-            return [IsVerifiedContributor()]
+            return [IsLiveSessionHost()]
         return super().get_permissions()
 
     def perform_create(self, serializer):
