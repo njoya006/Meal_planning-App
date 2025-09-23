@@ -6,6 +6,9 @@ from django.db.models import F
 import logging
 
 from .models import LiveSession, LiveChatMessage
+from .models import WebsocketToken
+import jwt, datetime
+from django.utils import timezone
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -36,6 +39,53 @@ class LiveChatConsumer(AsyncWebsocketConsumer):
                 self.session_slug = parts[2] if len(parts) >= 3 else ''
             self.group_name = f'live_{self.session_slug}'
             logger.debug('LiveChatConsumer.connect: session_slug=%s', self.session_slug)
+
+            # If an ephemeral ws token is provided via ?token= or Authorization header validate it
+            # and populate scope['user'] accordingly. This allows mobile clients to connect
+            # without a browser session cookie.
+            query_string = self.scope.get('query_string', b'').decode('utf-8')
+            token = None
+            # parse query string for token param
+            for part in query_string.split('&'):
+                if part.startswith('token='):
+                    token = part.split('=', 1)[1]
+                    break
+            # if Authorization header present, prefer it
+            if not token:
+                headers = dict((k.decode('utf-8'), v.decode('utf-8')) for k, v in self.scope.get('headers', []))
+                auth = headers.get('authorization') or headers.get('Authorization')
+                if auth and auth.lower().startswith('bearer '):
+                    token = auth.split(' ', 1)[1]
+
+            if token:
+                try:
+                    secret = getattr(__import__('django.conf').conf.settings, 'SECRET_KEY')
+                    payload = jwt.decode(token, secret, algorithms=['HS256'])
+                    jti = payload.get('jti')
+                    if jti:
+                        try:
+                            ws_token = WebsocketToken.objects.get(jti=jti, used=False)
+                        except WebsocketToken.DoesNotExist:
+                            ws_token = None
+
+                        if ws_token:
+                            # check expiry
+                            if ws_token.expires_at and ws_token.expires_at < timezone.now():
+                                logger.debug('LiveChatConsumer.connect: ws token expired')
+                            else:
+                                # Mark token used and set scope user
+                                ws_token.used = True
+                                ws_token.save()
+                                # populate scope user for downstream code
+                                from django.contrib.auth import get_user_model
+                                User = get_user_model()
+                                try:
+                                    user = User.objects.get(pk=payload.get('user_id'))
+                                    self.scope['user'] = user
+                                except Exception:
+                                    pass
+                except Exception:
+                    logger.exception('LiveChatConsumer.connect: invalid ws token')
 
             # Add channel to group and accept connection
             await self.channel_layer.group_add(self.group_name, self.channel_name)

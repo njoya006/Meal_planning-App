@@ -623,3 +623,21 @@ class LiveChatMessage(models.Model):
 
     def __str__(self):
         return f"{self.user.username}: {self.message[:40]}"
+
+
+class WebsocketToken(models.Model):
+    """Ephemeral token issued for authenticating a single websocket connection.
+
+    The token contains a jti and is marked used after one successful connection.
+    """
+    jti = models.CharField(max_length=128, unique=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='ws_tokens')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"WS token {self.jti} for {self.user.username} (used={self.used})"

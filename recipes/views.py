@@ -81,6 +81,34 @@ from .serializers import (
     RecipeCommentCreateSerializer
     , LiveSessionSerializer, LiveChatMessageSerializer
 )
+from .models import WebsocketToken
+import datetime, jwt, secrets
+from django.utils import timezone
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework import status
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def ws_token_view(request):
+    """Issue a short-lived, single-use websocket token for the requesting user.
+
+    Response: {"ws_token": "<signed>", "expires_in": 60}
+    """
+    user = request.user
+    ttl = 60  # seconds
+    jti = secrets.token_urlsafe(32)
+    expires_at = timezone.now() + datetime.timedelta(seconds=ttl)
+    # Persist ephemeral token
+    WebsocketToken.objects.create(jti=jti, user=user, expires_at=expires_at)
+    payload = {
+        'jti': jti,
+        'user_id': user.id,
+        'exp': int((timezone.now() + datetime.timedelta(seconds=ttl)).timestamp()),
+    }
+    token = jwt.encode(payload, getattr(__import__('django.conf').conf.settings, 'SECRET_KEY'), algorithm='HS256')
+    return Response({'ws_token': token, 'expires_in': ttl}, status=status.HTTP_200_OK)
 
 class RecipeViewSet(viewsets.ModelViewSet):
     # Provide a default queryset and serializer so DRF can serve list/retrieve endpoints
@@ -181,9 +209,22 @@ class LiveChatViewSet(viewsets.ModelViewSet):
     queryset = LiveChatMessage.objects.all().order_by('created_at')
     serializer_class = LiveChatMessageSerializer
     permission_classes = [IsAuthenticated]
+    from rest_framework.pagination import PageNumberPagination
+    class ChatPagination(PageNumberPagination):
+        page_size = 25
+        page_size_query_param = 'page_size'
+        max_page_size = 100
+    pagination_class = ChatPagination
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    def get_queryset(self):
+        qs = LiveChatMessage.objects.all().order_by('created_at')
+        session_id = self.request.query_params.get('session')
+        if session_id:
+            qs = qs.filter(session_id=session_id)
+        return qs
 
     @action(detail=False, methods=['post'], url_path='suggest-by-budget', permission_classes=[IsAuthenticatedOrReadOnly])
     def suggest_by_budget(self, request):

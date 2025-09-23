@@ -20,6 +20,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from . import csrf_views
 from .test_views import CORSTestView, MediaTestView
+from recipes.views import ws_token_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -33,6 +34,7 @@ urlpatterns = [
     path('api/dj-rest-auth/registration/', include('dj_rest_auth.registration.urls')),
     path('api/planner/', include('planner.urls')),
     path('api/recipes/', include('recipes.urls')),
+    path('api/ws-token/', ws_token_view),
     path('api/', include('api.urls')),
     path('billing/', include('billing.urls')),
 
