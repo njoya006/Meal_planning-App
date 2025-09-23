@@ -216,7 +216,7 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
         return Response({'stream_key': session.stream_key})
 
     @action(detail=True, methods=['get'], url_path='messages')
-    def messages(self, request, pk=None):
+    def messages(self, request, slug=None, *args, **kwargs):
         """Return paginated chat history for this live session.
 
         Accessible at: /api/live-sessions/<slug>/messages/
