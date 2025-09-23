@@ -154,7 +154,7 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
             serializer.save()
 
     @action(detail=True, methods=['post'])
-    def start(self, request, pk=None):
+    def start(self, request, slug=None, *args, **kwargs):
         session = self.get_object()
         if session.host != request.user:
             return Response({'error': 'Only the host can start the session.'}, status=status.HTTP_403_FORBIDDEN)
@@ -168,7 +168,7 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
         return Response(self.get_serializer(session).data)
 
     @action(detail=True, methods=['post'])
-    def stop(self, request, pk=None):
+    def stop(self, request, slug=None, *args, **kwargs):
         session = self.get_object()
         if session.host != request.user:
             return Response({'error': 'Only the host can stop the session.'}, status=status.HTTP_403_FORBIDDEN)
@@ -181,7 +181,7 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
         return Response(self.get_serializer(session).data)
 
     @action(detail=True, methods=['post'])
-    def join(self, request, pk=None):
+    def join(self, request, slug=None, *args, **kwargs):
         # In a real implementation, joining returns an access token or websocket URL
         session = self.get_object()
         # Increment viewer count — in practice this should be handled by realtime layer
@@ -191,7 +191,7 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
         return Response({'detail': 'Joined', 'viewer_count': session.viewer_count, 'stream_key': session.stream_key})
 
     @action(detail=True, methods=['post'])
-    def token(self, request, pk=None):
+    def token(self, request, slug=None, *args, **kwargs):
         """Issue a short-lived signed viewer token for playback (MVP)."""
         session = self.get_object()
         import jwt, time
@@ -205,7 +205,7 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
         return Response({'token': token})
 
     @action(detail=True, methods=['post'])
-    def regenerate_key(self, request, pk=None):
+    def regenerate_key(self, request, slug=None, *args, **kwargs):
         """Regenerate the stream key (host only)."""
         session = self.get_object()
         if session.host != request.user:
