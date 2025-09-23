@@ -21,6 +21,13 @@ from django.conf.urls.static import static
 from . import csrf_views
 from .test_views import CORSTestView, MediaTestView
 from recipes.views import ws_token_view
+from rest_framework.routers import DefaultRouter
+from recipes.views import LiveSessionViewSet, LiveChatViewSet
+
+# Expose live endpoints at top-level /api/
+router = DefaultRouter()
+router.register(r'live-sessions', LiveSessionViewSet, basename='live-session')
+router.register(r'live-chat', LiveChatViewSet, basename='live-chat')
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -36,6 +43,7 @@ urlpatterns = [
     path('api/recipes/', include('recipes.urls')),
     path('api/ws-token/', ws_token_view),
     path('api/', include('api.urls')),
+    path('api/', include(router.urls)),
     path('billing/', include('billing.urls')),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
