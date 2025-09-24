@@ -11,9 +11,11 @@ Usage:
 
 from .models import BadIngredient, IngredientSubstitution
 from collections import defaultdict
+from functools import lru_cache
 
 # Dynamic accessors for bad ingredient pairs, triplets, and categories
 
+@lru_cache(maxsize=1)
 def get_bad_ingredient_pairs():
     """Return a set of sorted tuples (ingredient1, ingredient2) for bad pairs."""
     pairs = set()
@@ -23,6 +25,7 @@ def get_bad_ingredient_pairs():
             pairs.add(tuple(items))
     return pairs
 
+@lru_cache(maxsize=1)
 def get_bad_ingredient_triplets():
     """Return a set of sorted tuples (ingredient1, ingredient2, ingredient3) for bad triplets."""
     triplets = set()
@@ -32,6 +35,7 @@ def get_bad_ingredient_triplets():
             triplets.add(tuple(items))
     return triplets
 
+@lru_cache(maxsize=1)
 def get_bad_ingredient_categories():
     """Return a dict mapping category name to a set of ingredient names."""
     categories = defaultdict(set)
@@ -41,6 +45,7 @@ def get_bad_ingredient_categories():
         categories[cat].update(items)
     return dict(categories)
 
+@lru_cache(maxsize=1)
 def get_ingredient_substitutions():
     """Return a dict mapping ingredient name to a list of substitutions from the database."""
     subs = {}

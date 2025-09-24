@@ -213,12 +213,10 @@ AUTH_USER_MODEL = 'users.CustomUser'
 
 # Channels configuration (optional). If you enable Channels, configure a channel layer
 # such as Redis and set CHANNEL_LAYERS accordingly. Example below uses a local Redis.
+# For PythonAnywhere or environments without Redis, use InMemoryChannelLayer
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [('127.0.0.1', 6379)],
-        },
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
     }
 }
 
