@@ -33,7 +33,7 @@ SECRET_KEY = os.getenv(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() in ('1', 'true', 'yes')
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('1', 'true', 'yes')
 
 # CSRF Configuration
 CSRF_COOKIE_NAME = "csrftoken"
@@ -44,13 +44,15 @@ CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'Lax')  # Allow cross-s
 CSRF_USE_SESSIONS = False  # Use cookies instead of sessions for CSRF
 CSRF_COOKIE_AGE = 31449600  # 1 year
 
-ALLOWED_HOSTS = [
-    '127.0.0.1',
-    'localhost',
-    'njoya.pythonanywhere.com',
-    '.pythonanywhere.com',  # Allow any subdomain of pythonanywhere.com
-    'testserver',  # For Django test client
-]
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,testserver').split(',')
+
+# Add Render domain if RENDER_EXTERNAL_URL is available
+render_url = os.getenv('RENDER_EXTERNAL_URL')
+if render_url:
+    from urllib.parse import urlparse
+    render_domain = urlparse(render_url).netloc
+    if render_domain and render_domain not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(render_domain)
 
 
 # Application definition
@@ -121,11 +123,14 @@ ASGI_APPLICATION = 'meal_project.asgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Use DATABASE_URL if available (for Render), otherwise use individual DB_* variables
+import dj_database_url
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME')}",
+        conn_max_age=600
+    )
 }
 
 
@@ -225,25 +230,11 @@ CHANNEL_LAYERS = {
 
 # ... (other settings) ...
 
-CORS_ALLOWED_ORIGINS = [
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-    "http://127.0.0.1:5500",
-    "http://localhost:5500",
-    "http://127.0.0.1:5501",
-    "http://localhost:5501",
-    "http://192.168.137.247:8000",
-    "http://192.168.137.247:3000",
-    "http://192.168.137.243:3000",
-    "http://192.168.137.243:8000",
-    "http://localhost:3000",
-    "https://frontendsmo.vercel.app",
-    "https://njoya.pythonanywhere.com",
-]
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://127.0.0.1:8000,http://localhost:8000,https://frontendsmo.vercel.app').split(',')
 
 # Temporarily enabled for frontend compatibility while proper CORS configuration is deployed
 # TODO: Remove this and rely on specific origins once properly deployed to PythonAnywhere
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'False').lower() in ('1', 'true', 'yes')
 
 # Allow requests from any subdomain of vercel.app
 CORS_ALLOWED_ORIGIN_REGEXES = [
@@ -287,22 +278,7 @@ CORS_ALLOW_METHODS = [
 ]
 
 # Add CSRF trusted origins for frontend
-CSRF_TRUSTED_ORIGINS = [
-    "http://127.0.0.1:5500",
-    "http://localhost:5500", 
-    "http://127.0.0.1:5501",
-    "http://localhost:5501",
-    "http://127.0.0.1:8000",
-    "http://localhost:8000",
-    "http://192.168.137.247:8000",
-    "http://192.168.137.247:3000",
-    "http://192.168.137.243:3000",
-    "http://192.168.137.243:8000",
-    "http://localhost:3000",
-    "https://frontendsmo.vercel.app",
-    "https://njoya.pythonanywhere.com",
-    "https://*.vercel.app",  # Allow any Vercel deployment
-]
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://127.0.0.1:5500,http://localhost:5500,https://frontendsmo.vercel.app').split(',')
 
 SITE_ID = 1
 
