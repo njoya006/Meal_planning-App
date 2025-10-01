@@ -1,3 +1,9 @@
+databases:
+  - name: chopsmo-db
+    databaseName: chopsmo_db
+    user: chopsmo_user
+    plan: free
+
 services:
   - type: web
     name: chopsmo-backend
@@ -27,8 +33,3 @@ services:
         fromDatabase:
           name: chopsmo-db
           property: connectionString
-    databases:
-      - name: chopsmo-db
-        databaseName: chopsmo_db
-        user: chopsmo_user
-        plan: free
