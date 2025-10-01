@@ -12,11 +12,22 @@ import os
 from django.core.asgi import get_asgi_application
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'meal_project.settings')
 
+# Initialize Django
+django_asgi_app = get_asgi_application()
+
 # Use Channels ProtocolTypeRouter to combine HTTP and WebSocket handling.
-from channels.routing import ProtocolTypeRouter
-from routing import application as channels_application
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
+from django.urls import path
+
+# Import consumer after Django is set up
+from recipes.consumers import LiveChatConsumer
 
 application = ProtocolTypeRouter({
-	'http': get_asgi_application(),
-	'websocket': channels_application,
+    'http': django_asgi_app,
+    'websocket': AuthMiddlewareStack(
+        URLRouter([
+            path('ws/live/<slug:session_slug>/', LiveChatConsumer.as_asgi()),
+        ])
+    ),
 })
