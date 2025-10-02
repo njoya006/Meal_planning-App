@@ -1,0 +1,50 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}ChopSmo Admin{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'css/admin_theme.css' %}">
+{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}">
+        <span class="brand-accent">Chop</span>Smo <span class="brand-subtitle">Control Center</span>
+    </a>
+</h1>
+{% endblock %}
+
+{% block nav-global %}
+<nav class="admin-quick-links" aria-label="Quick links">
+    <a href="/" target="_blank">View Site</a>
+    <a href="{% url 'admin:app_list' 'users' %}">Users</a>
+    <a href="{% url 'admin:app_list' 'recipes' %}">Recipes</a>
+    <a href="{% url 'admin:app_list' 'planner' %}">Planner</a>
+</nav>
+{% endblock %}
+
+{% block usertools %}
+<div id="user-tools" class="user-tools">
+    {% if has_permission %}
+        <span class="welcome-text">Signed in as <strong>{{ user.get_short_name|default:user.get_username }}</strong></span>
+        {% if user.has_usable_password %}
+            <a href="{% url 'admin:password_change' %}">Password</a>
+        {% endif %}
+        <a href="{% url 'admin:logout' %}">Log out</a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block footer %}
+<footer class="admin-footer">
+    <div class="footer-inner">
+        <span>&copy; {% now "Y" %} ChopSmo Platform</span>
+        <span class="footer-links">
+            <a href="https://github.com/njoya006/Meal_planning-App" target="_blank" rel="noopener">Source</a>
+            <a href="mailto:ops@chopsmo.com">Contact ops</a>
+        </span>
+    </div>
+</footer>
+{% endblock %}

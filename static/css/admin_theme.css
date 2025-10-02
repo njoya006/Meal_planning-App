@@ -1,0 +1,183 @@
+:root {
+    --primary-bg: #0f172a;
+    --primary-surface: #111827;
+    --primary-accent: #38bdf8;
+    --primary-accent-strong: #0ea5e9;
+    --text-on-dark: #e2e8f0;
+    --muted-text: #94a3b8;
+}
+
+body.login {
+    background: radial-gradient(circle at 10% 20%, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 1) 60%);
+    color: var(--text-on-dark);
+}
+
+body.login #content-main {
+    background: rgba(15, 23, 42, 0.9);
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.45);
+    padding: 32px 40px;
+}
+
+body.login #content-main h1 {
+    color: var(--text-on-dark);
+    font-size: 2rem;
+    margin-bottom: 16px;
+    letter-spacing: -0.02em;
+}
+
+body.login #content-main input[type="text"],
+body.login #content-main input[type="password"] {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    color: var(--text-on-dark);
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+
+body.login #content-main input[type="submit"] {
+    background: linear-gradient(135deg, var(--primary-accent), var(--primary-accent-strong));
+    border: none;
+    border-radius: 999px;
+    padding: 12px 22px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+body.login #content-main input[type="submit"]:hover {
+    background: linear-gradient(135deg, var(--primary-accent-strong), #0284c7);
+}
+
+#header {
+    background: rgba(15, 23, 42, 0.92);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
+}
+
+#header #site-name a {
+    color: var(--text-on-dark);
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+#header #site-name .brand-accent {
+    color: var(--primary-accent);
+    font-weight: 700;
+}
+
+#header #site-name .brand-subtitle {
+    color: var(--muted-text);
+    font-size: 0.85em;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.admin-quick-links {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-left: auto;
+}
+
+.admin-quick-links a {
+    color: var(--muted-text);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.admin-quick-links a:hover {
+    color: var(--primary-accent);
+}
+
+.user-tools {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    color: var(--muted-text);
+}
+
+.user-tools a {
+    color: var(--text-on-dark);
+    font-weight: 500;
+}
+
+#content, #changelist-form, .module, .inline-group {
+    background: var(--primary-surface);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 14px;
+    color: var(--text-on-dark);
+}
+
+#content h1, #content h2, #content h3 {
+    color: var(--text-on-dark);
+}
+
+.dashboard #content-main .module, #recent-actions-module {
+    background: rgba(15, 23, 42, 0.85);
+}
+
+.admin-footer {
+    background: rgba(15, 23, 42, 0.92);
+    border-top: 1px solid rgba(148, 163, 184, 0.2);
+    padding: 18px 30px;
+    margin-top: 40px;
+}
+
+.admin-footer .footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--muted-text);
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.admin-footer .footer-links a {
+    color: var(--muted-text);
+    margin-left: 16px;
+}
+
+.admin-footer .footer-links a:hover {
+    color: var(--primary-accent);
+}
+
+.change-list .searchbar {
+    background: rgba(15, 23, 42, 0.7);
+}
+
+.paginator, .actions {
+    background: transparent;
+    border: none;
+}
+
+.object-tools a {
+    background: linear-gradient(135deg, var(--primary-accent), var(--primary-accent-strong));
+    border: none;
+    border-radius: 999px;
+}
+
+.object-tools a:hover {
+    background: linear-gradient(135deg, var(--primary-accent-strong), #0284c7);
+}
+
+#nav-sidebar {
+    background: rgba(15, 23, 42, 0.85);
+}
+
+#nav-sidebar .module caption {
+    background: transparent;
+    color: var(--muted-text);
+    font-weight: 600;
+}
+
+#nav-sidebar .module ul li a {
+    color: var(--text-on-dark);
+}
+
+#nav-sidebar .module ul li a:hover,
+#nav-sidebar .module ul li a:focus {
+    color: var(--primary-accent);
+}

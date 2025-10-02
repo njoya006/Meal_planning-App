@@ -67,3 +67,17 @@ The backend is already running behind Daphne and Nginx. Follow the steps below t
 
 With HTTPS enabled, you can safely remove port 8001 from any public-facing security groups and rely solely on port 80/443 through Nginx.
 
+### Refreshing the Django admin theme
+
+After modifying templates or static assets for the admin (for example the custom ChopSmo theme located in `templates/admin/base_site.html` and `static/css/admin_theme.css`), update the live server as follows:
+
+```bash
+source ~/chopsmo/venv/bin/activate
+cd ~/chopsmo
+python manage.py collectstatic --noinput
+sudo systemctl restart chopsmo
+sudo systemctl reload nginx
+```
+
+If static files still appear stale in the browser, clear your cache or force refresh (`Ctrl+F5`) to pick up the newest CSS bundle.
+
