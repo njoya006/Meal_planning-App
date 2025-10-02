@@ -23,6 +23,7 @@ from .test_views import CORSTestView, MediaTestView
 from recipes.views import ws_token_view
 from rest_framework.routers import DefaultRouter
 from recipes.views import LiveSessionViewSet, LiveChatViewSet
+from .views import HomeView
 
 # Expose live endpoints at top-level /api/
 router = DefaultRouter()
@@ -30,6 +31,7 @@ router.register(r'live-sessions', LiveSessionViewSet, basename='live-session')
 router.register(r'live-chat', LiveChatViewSet, basename='live-chat')
 
 urlpatterns = [
+    path('', HomeView.as_view(), name='home'),
     path('admin/', admin.site.urls),
     path('api/csrf-token/', csrf_views.get_csrf_token, name='csrf_token'),
     path('api/csrf-debug/', csrf_views.csrf_debug, name='csrf_debug'),

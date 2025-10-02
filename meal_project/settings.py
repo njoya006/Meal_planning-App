@@ -40,7 +40,7 @@ CSRF_COOKIE_NAME = "csrftoken"
 CSRF_HEADER_NAME = "X-CSRFToken"
 CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'True').lower() in ('1', 'true', 'yes')
 CSRF_COOKIE_HTTPONLY = os.getenv('CSRF_COOKIE_HTTPONLY', 'True').lower() in ('1', 'true', 'yes')
-CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'Lax')  # Allow cross-site requests for development
+CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'Lax')
 CSRF_USE_SESSIONS = False  # Use cookies instead of sessions for CSRF
 CSRF_COOKIE_AGE = 31449600  # 1 year
 
@@ -101,7 +101,7 @@ ROOT_URLCONF = 'meal_project.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -126,12 +126,19 @@ ASGI_APPLICATION = 'meal_project.asgi.application'
 # Use DATABASE_URL if available (for Render), otherwise use individual DB_* variables
 import dj_database_url
 
+DATABASE_SSL_REQUIRE = os.getenv('DATABASE_SSL_REQUIRE', 'True').lower() in ('1', 'true', 'yes')
+
+default_database_config = dj_database_url.config(
+    default=f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME')}",
+    conn_max_age=600,
+    ssl_require=DATABASE_SSL_REQUIRE
+)
+
+if default_database_config.get('ENGINE') == 'django.db.backends.sqlite3':
+    default_database_config.setdefault('OPTIONS', {}).pop('sslmode', None)
+
 DATABASES = {
-    'default': dj_database_url.config(
-        default=f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME')}",
-        conn_max_age=600,
-        ssl_require=True
-    )
+    'default': default_database_config
 }
 
 
@@ -301,6 +308,10 @@ SECURE_HSTS_PRELOAD = os.getenv('SECURE_HSTS_PRELOAD', 'False').lower() in ('1',
 SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').lower() in ('1', 'true', 'yes')
 SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'True').lower() in ('1', 'true', 'yes')
 CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'True').lower() in ('1', 'true', 'yes')
+ALLOW_INSECURE_COOKIES = os.getenv('ALLOW_INSECURE_COOKIES', 'False').lower() in ('1', 'true', 'yes')
+
+# Honor proto headers from the reverse proxy so Django knows requests arrived via HTTPS.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Production security overrides (only applied when DEBUG is False)
 if not DEBUG:
@@ -313,9 +324,11 @@ if not DEBUG:
     # Allow explicit override via environment variable in production
     SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', 'False').lower() in ('1', 'true', 'yes')
 
-    # Cookies should be secure in production
-    SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'True').lower() in ('1', 'true', 'yes')
-    CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'True').lower() in ('1', 'true', 'yes')
+    # Cookies should be secure in production unless explicitly overridden for temporary troubleshooting
+    if not ALLOW_INSECURE_COOKIES:
+        SESSION_COOKIE_SECURE = True
+        CSRF_COOKIE_SECURE = True
+        CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'Lax')
 
     # Recommend other secure defaults
     SECURE_BROWSER_XSS_FILTER = True

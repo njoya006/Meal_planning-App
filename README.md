@@ -13,3 +13,57 @@ A recipe generator app based on available ingredients
 
 ![class diagram](https://github.com/user-attachments/assets/de6364cd-85ce-4b7a-ad7e-49296556eaae)
 
+## Production HTTPS + Security Checklist
+
+The backend is already running behind Daphne and Nginx. Follow the steps below to finish the hardening work and issue a TLS certificate.
+
+1. **Install Certbot and request a certificate** (replace `<domain>` with your real domain name once DNS records point to the server):
+
+	```bash
+	sudo apt update
+	sudo apt install -y certbot python3-certbot-nginx
+	sudo certbot --nginx -d <domain> -d www.<domain>
+	```
+
+	Certbot will prompt you to redirect all HTTP traffic to HTTPS. Answer “Yes” so Nginx updates the server block automatically. Certificates renew automatically via the systemd timer installed by Certbot.
+
+2. **Update your environment variables** (`/home/ubuntu/chopsmo/.env`) now that HTTPS is in place:
+
+	```bash
+	# Enforce secure cookies and HTTPS redirects
+	DEBUG=False
+	SECURE_SSL_REDIRECT=True
+	SESSION_COOKIE_SECURE=True
+	CSRF_COOKIE_SECURE=True
+	CSRF_COOKIE_SAMESITE=Lax
+	ALLOW_INSECURE_COOKIES=False
+	DATABASE_SSL_REQUIRE=True
+	CSRF_TRUSTED_ORIGINS=https://<domain>
+	ALLOWED_HOSTS=<domain>,www.<domain>
+	```
+
+	Remove any temporary overrides that set `SESSION_COOKIE_SECURE` or `CSRF_COOKIE_SECURE` to `False`. The new `ALLOW_INSECURE_COOKIES` flag in `meal_project/settings.py` exists only for emergency troubleshooting—leave it `False` for production.
+
+3. **Reload services so the new settings take effect**:
+
+	```bash
+	sudo systemctl restart chopsmo
+	sudo systemctl reload nginx
+	```
+
+4. **Smoke test the deployment**:
+
+	```bash
+	curl -I https://<domain>/
+	curl -I https://<domain>/admin/
+	sudo systemctl status chopsmo
+	sudo tail -n 50 /var/log/nginx/access.log
+	```
+
+5. **Set up monitoring** (optional but recommended):
+
+	- Add a UptimeRobot check on `https://<domain>/admin/login/`.
+	- Subscribe to Certbot renewal emails (sent to the address you supplied in step 1).
+
+With HTTPS enabled, you can safely remove port 8001 from any public-facing security groups and rely solely on port 80/443 through Nginx.
+
