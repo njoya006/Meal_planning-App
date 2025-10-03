@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Script to create a test user on the PythonAnywhere server
+Script to create a test user on the AWS-hosted ChopSmo server.
 """
 import os
 import sys

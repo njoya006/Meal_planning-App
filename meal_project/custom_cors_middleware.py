@@ -14,7 +14,7 @@ class CustomCorsMiddleware:
         # Get origin from request headers
         origin = request.META.get('HTTP_ORIGIN')
         allowed_origins = [
-            "https://frontendsmo.vercel.app",
+            "https://www.chopsmo.site",
             "https://frontendsmo-2kk0xp0y6-njoyas-projects-2a144474.vercel.app",
             "http://localhost:3000"
         ]

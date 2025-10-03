@@ -100,7 +100,7 @@ def send_verification_approval_email(user):
                 
                 <p>Ready to start creating amazing recipes? Head over to your dashboard and begin sharing your culinary expertise!</p>
                 
-                <a href="https://frontendsmo.vercel.app/dashboard" class="cta-button">Start Creating Recipes →</a>
+                <a href="https://www.chopsmo.site/dashboard" class="cta-button">Start Creating Recipes →</a>
                 
                 <p>Thank you for being part of the ChopSmo family. We can't wait to see the amazing recipes you'll create!</p>
                 
@@ -130,7 +130,7 @@ def send_verification_approval_email(user):
     ✅ Priority support
     ✅ Early access to new features
     
-    Start creating recipes at: https://frontendsmo.vercel.app/dashboard
+    Start creating recipes at: https://www.chopsmo.site/dashboard
     
     Happy cooking!
     The ChopSmo Team
@@ -234,7 +234,7 @@ def send_verification_rejection_email(user, reason=""):
                     <li>Reapply when you feel ready</li>
                 </ul>
                 
-                <a href="https://frontendsmo.vercel.app/verification" class="cta-button">Apply Again</a>
+                <a href="https://www.chopsmo.site/verification" class="cta-button">Apply Again</a>
                 
                 <p>We appreciate your passion for cooking and look forward to potentially welcoming you as a verified contributor in the future.</p>
                 

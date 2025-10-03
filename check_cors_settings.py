@@ -75,7 +75,7 @@ def check_cors_settings():
     print("\n=== Recommendations ===")
     if not getattr(settings, 'CORS_ALLOW_ALL_ORIGINS', False) and not vercel_origins and not vercel_regex:
         print("✘ No Vercel domain found in CORS settings!")
-        print("  Add 'https://frontendsmo.vercel.app' to CORS_ALLOWED_ORIGINS")
+    print("  Add 'https://www.chopsmo.site' to CORS_ALLOWED_ORIGINS")
     
     if 'POST' not in allowed_methods:
         print("✘ POST method not allowed in CORS settings!")
@@ -99,7 +99,7 @@ def test_cors_login_endpoint():
     
     login_url = "http://localhost:8000/api/token/"  # Update with your actual login URL
     test_origins = [
-        "https://frontendsmo.vercel.app",
+    "https://www.chopsmo.site",
         "http://localhost:3000",
         "https://example.com"
     ]
@@ -134,7 +134,7 @@ def test_cors_endpoints():
     ]
     
     # Frontend origin to simulate
-    frontend_origin = 'https://frontendsmo.vercel.app'
+    frontend_origin = 'https://www.chopsmo.site'
     
     # Endpoints to test
     endpoints = [

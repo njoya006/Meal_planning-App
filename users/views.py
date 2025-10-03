@@ -59,7 +59,7 @@ class UserLoginView(APIView):
             }, status=status.HTTP_200_OK)
             
             # Add explicit CORS headers
-            response["Access-Control-Allow-Origin"] = "https://frontendsmo.vercel.app"
+            response["Access-Control-Allow-Origin"] = "https://www.chopsmo.site"
             response["Access-Control-Allow-Credentials"] = "true"
             response["Access-Control-Allow-Methods"] = "POST, OPTIONS"
             response["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
@@ -70,7 +70,7 @@ class UserLoginView(APIView):
     def options(self, request, *args, **kwargs):
         """Handle preflight OPTIONS requests"""
         response = Response(status=status.HTTP_200_OK)
-        response["Access-Control-Allow-Origin"] = "https://frontendsmo.vercel.app"
+        response["Access-Control-Allow-Origin"] = "https://www.chopsmo.site"
         response["Access-Control-Allow-Credentials"] = "true"
         response["Access-Control-Allow-Methods"] = "POST, OPTIONS"
         response["Access-Control-Allow-Headers"] = "Content-Type, Authorization"

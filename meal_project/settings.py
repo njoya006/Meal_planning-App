@@ -215,7 +215,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Configure WhiteNoise to serve media files in production
-# This is needed for PythonAnywhere and other platforms where you can't use a separate web server for media
+# Helpful for shared hosting setups where a separate web server for media isn't available
 WHITENOISE_USE_FINDERS = True
 WHITENOISE_AUTOREFRESH = True
 
@@ -228,7 +228,7 @@ AUTH_USER_MODEL = 'users.CustomUser'
 
 # Channels configuration (optional). If you enable Channels, configure a channel layer
 # such as Redis and set CHANNEL_LAYERS accordingly. Example below uses a local Redis.
-# For PythonAnywhere or environments without Redis, use InMemoryChannelLayer
+# For lightweight environments without Redis, use InMemoryChannelLayer
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels.layers.InMemoryChannelLayer',
@@ -239,10 +239,10 @@ CHANNEL_LAYERS = {
 
 # ... (other settings) ...
 
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://127.0.0.1:8000,http://localhost:8000,https://frontendsmo.vercel.app').split(',')
+CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://127.0.0.1:8000,http://localhost:8000,https://www.chopsmo.site').split(',')
 
 # Temporarily enabled for frontend compatibility while proper CORS configuration is deployed
-# TODO: Remove this and rely on specific origins once properly deployed to PythonAnywhere
+# TODO: Tighten this once the AWS domain and subdomains are finalized
 CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'False').lower() in ('1', 'true', 'yes')
 
 # Allow requests from any subdomain of vercel.app
@@ -287,7 +287,7 @@ CORS_ALLOW_METHODS = [
 ]
 
 # Add CSRF trusted origins for frontend
-CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://127.0.0.1:5500,http://localhost:5500,https://frontendsmo.vercel.app').split(',')
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://127.0.0.1:5500,http://localhost:5500,https://www.chopsmo.site').split(',')
 
 SITE_ID = 1
 

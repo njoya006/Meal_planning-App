@@ -2,7 +2,7 @@
 """
 Check CORS headers for a given endpoint and origin.
 Usage: python check_cors_headers.py <url> <origin>
-Example: python check_cors_headers.py https://njoya.pythonanywhere.com/api/users/login/ https://frontendsmo.vercel.app
+Example: python check_cors_headers.py https://your-aws-hostname/api/users/login/ https://www.chopsmo.site
 """
 import sys
 import requests

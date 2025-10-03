@@ -1,24 +1,11 @@
 #!/bin/bash
-# PythonAnywhere deployment script
-# Run this on your PythonAnywhere console
+# This script has been retired now that ChopSmo runs on AWS.
+# Use the deployment steps documented in README.md (Certbot, systemd reload, etc.).
 
-echo "🚀 Deploying ChopSmo Backend Fixes..."
-
-# Step 1: Handle any unstaged changes
-echo "📋 Checking for unstaged changes..."
-git status
-
-# Step 2: Stash any local changes on server
-echo "💾 Stashing any local changes..."
-git stash
-
-# Step 3: Switch to njoya branch
-echo "🔄 Switching to njoya branch..."
-git checkout njoya
-
-# Step 4: Pull latest changes
-echo "📥 Pulling latest changes..."
-git pull origin njoya
+echo "⚠️  deploy-to-pythonanywhere.sh has been deprecated."
+echo "   The project no longer targets PythonAnywhere hosting."
+echo "   Please follow the AWS deployment workflow in README.md instead."
+exit 1
 
 # Step 5: Apply any stashed changes if needed
 echo "🔍 Checking for stashed changes..."
