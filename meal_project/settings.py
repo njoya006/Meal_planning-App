@@ -44,7 +44,10 @@ CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'Lax')
 CSRF_USE_SESSIONS = False  # Use cookies instead of sessions for CSRF
 CSRF_COOKIE_AGE = 31449600  # 1 year
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,testserver').split(',')
+ALLOWED_HOSTS = os.getenv(
+    'ALLOWED_HOSTS',
+    '127.0.0.1,localhost,testserver,api.chopsmo.site,www.chopsmo.site'
+).split(',')
 
 # Add Render domain if RENDER_EXTERNAL_URL is available
 render_url = os.getenv('RENDER_EXTERNAL_URL')
