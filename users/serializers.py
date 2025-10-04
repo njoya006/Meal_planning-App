@@ -29,41 +29,33 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return CustomUser.objects.create(**validated_data)
     
 class UserLoginSerializer(serializers.Serializer):
-    """Serializer for user login with username or email."""
-    
-    username = serializers.CharField(required=False)  # Can be username or email
-    email = serializers.EmailField(required=False)
+    """Serializer for user login using email and password."""
+
+    email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
         """Validate login credentials."""
-        username = data.get('username')
         email = data.get('email')
         password = data.get('password')
 
-        if not (username or email):
-            raise serializers.ValidationError("Please provide either username or email.")
+        if not email:
+            raise serializers.ValidationError({"email": "Email is required."})
 
         if not password:
-            raise serializers.ValidationError("Password is required.")
+            raise serializers.ValidationError({"password": "Password is required."})
 
-        user = None
-        if username:
-            # Authenticate by username
-            user = authenticate(username=username, password=password)
-        elif email:
-            # Authenticate by email
-            try:
-                # Find user by email, then authenticate with their username
-                temp_user = CustomUser.objects.get(email=email)
-                user = authenticate(username=temp_user.username, password=password)
-            except CustomUser.DoesNotExist:
-                raise serializers.ValidationError("Invalid credentials.")
+        try:
+            temp_user = CustomUser.objects.get(email__iexact=email)
+        except CustomUser.DoesNotExist:
+            raise serializers.ValidationError("Invalid credentials.")
+
+        request = self.context.get('request')
+        user = authenticate(request=request, username=temp_user.username, password=password)
 
         if not user:
             raise serializers.ValidationError("Invalid credentials.")
 
-        # If user is found but not active, deny login
         if not user.is_active:
             raise serializers.ValidationError("User account is disabled.")
 
