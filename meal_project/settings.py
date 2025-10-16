@@ -306,8 +306,14 @@ CORS_ALLOW_METHODS = [
 ]
 
 # Add CSRF trusted origins for frontend (ensure https variants for production)
-DEFAULT_CSRF_ORIGINS = 'http://127.0.0.1:5500,http://localhost:5500,https://www.chopsmo.site,https://chopsmo.site'
+DEFAULT_CSRF_ORIGINS = 'http://127.0.0.1:5500,http://localhost:5500,https://www.chopsmo.site,https://chopsmo.site,https://api.chopsmo.site'
 CSRF_TRUSTED_ORIGINS = _parse_origins('CSRF_TRUSTED_ORIGINS', DEFAULT_CSRF_ORIGINS)
+
+# Make CSRF and session cookies available to subdomains (so frontend on www can
+# send cookies to api.chopsmo.site). Use environment variables to override in
+# case you prefer explicit values in production.
+CSRF_COOKIE_DOMAIN = os.getenv('CSRF_COOKIE_DOMAIN', '.chopsmo.site')
+SESSION_COOKIE_DOMAIN = os.getenv('SESSION_COOKIE_DOMAIN', '.chopsmo.site')
 
 SITE_ID = 1
 
