@@ -30,13 +30,36 @@ class LogOriginMiddleware(MiddlewareMixin):
             remote_addr = meta.get('REMOTE_ADDR')
             user_agent = meta.get('HTTP_USER_AGENT')
 
-            logger.info(
-                'LogOriginMiddleware: login POST headers - Origin=%s Referer=%s Host=%s RemoteAddr=%s UserAgent=%s',
+            # Check for CSRF cookie and header presence. Mask actual token values to
+            # avoid logging secrets in full. This is temporary debug logging and
+            # should be removed once we've diagnosed the issue.
+            csrf_cookie = None
+            try:
+                csrf_cookie = request.COOKIES.get('csrftoken')
+            except Exception:
+                csrf_cookie = None
+
+            x_csrf_header = meta.get('HTTP_X_CSRFTOKEN')
+
+            def _mask(val: str | None) -> str:
+                if not val:
+                    return '<missing>'
+                s = str(val)
+                if len(s) <= 8:
+                    return s[0:1] + '***'
+                return s[:4] + '...' + s[-4:]
+
+            logger.warning(
+                "LogOriginMiddleware: POST %s origin='%s' referer='%s' host='%s' x-forwarded-proto='%s' remote='%s' ua='%s' csrf_cookie='%s' x_csrf_header='%s'",
+                path,
                 origin,
                 referer,
                 host,
+                meta.get('HTTP_X_FORWARDED_PROTO'),
                 remote_addr,
                 user_agent,
+                _mask(csrf_cookie),
+                _mask(x_csrf_header),
             )
 
         return None
