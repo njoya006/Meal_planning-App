@@ -242,7 +242,22 @@ CHANNEL_LAYERS = {
 
 # ... (other settings) ...
 
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://127.0.0.1:8000,http://localhost:8000,https://www.chopsmo.site').split(',')
+def _parse_origins(env_var_name: str, default: str):
+    """Parse a comma-separated origins env var into a cleaned list.
+
+    Keeps entries trimmed and ignores empty strings. If env var is not set,
+    falls back to the provided default string (also comma-separated).
+    """
+    raw = os.getenv(env_var_name)
+    if raw is None:
+        raw = default
+    # split and strip
+    return [p.strip() for p in raw.split(',') if p.strip()]
+
+
+# Default CORS origins (include both with and without www)
+DEFAULT_CORS_ORIGINS = 'http://127.0.0.1:8000,http://localhost:8000,https://www.chopsmo.site,https://chopsmo.site'
+CORS_ALLOWED_ORIGINS = _parse_origins('CORS_ALLOWED_ORIGINS', DEFAULT_CORS_ORIGINS)
 
 # Temporarily enabled for frontend compatibility while proper CORS configuration is deployed
 # TODO: Tighten this once the AWS domain and subdomains are finalized
@@ -289,8 +304,9 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
-# Add CSRF trusted origins for frontend
-CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://127.0.0.1:5500,http://localhost:5500,https://www.chopsmo.site').split(',')
+# Add CSRF trusted origins for frontend (ensure https variants for production)
+DEFAULT_CSRF_ORIGINS = 'http://127.0.0.1:5500,http://localhost:5500,https://www.chopsmo.site,https://chopsmo.site'
+CSRF_TRUSTED_ORIGINS = _parse_origins('CSRF_TRUSTED_ORIGINS', DEFAULT_CSRF_ORIGINS)
 
 SITE_ID = 1
 
