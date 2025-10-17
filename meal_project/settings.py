@@ -39,8 +39,18 @@ DEBUG = os.getenv('DEBUG', 'False').lower() in ('1', 'true', 'yes')
 CSRF_COOKIE_NAME = "csrftoken"
 CSRF_HEADER_NAME = "X-CSRFToken"
 CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'True').lower() in ('1', 'true', 'yes')
-CSRF_COOKIE_HTTPONLY = os.getenv('CSRF_COOKIE_HTTPONLY', 'True').lower() in ('1', 'true', 'yes')
-CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'Lax')
+# Allow JavaScript to read the CSRF cookie so frontend code can copy it into the
+# X-CSRFToken header when making cross-site fetch() requests. Default to False
+# so developers don't accidentally make the token unreadable; allow override via
+# .env (set to 'True' to make cookie HttpOnly).
+CSRF_COOKIE_HTTPONLY = os.getenv('CSRF_COOKIE_HTTPONLY', 'False').lower() in ('1', 'true', 'yes')
+# For cross-site requests between subdomains (www -> api), SameSite must be
+# 'None' and cookies must be Secure. Make SameSite configurable via .env but
+# default to 'None' (recommended for production with secure transport).
+CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'None')
+
+# Session cookie SameSite setting (mirror the CSRF cookie behavior by default)
+SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', 'None')
 CSRF_USE_SESSIONS = False  # Use cookies instead of sessions for CSRF
 CSRF_COOKIE_AGE = 31449600  # 1 year
 
@@ -355,7 +365,10 @@ if not DEBUG:
     if not ALLOW_INSECURE_COOKIES:
         SESSION_COOKIE_SECURE = True
         CSRF_COOKIE_SECURE = True
-        CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'Lax')
+        # In production default to SameSite=None (allow cross-site requests from
+        # the frontend domain). This can be overridden via the environment.
+        CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'None')
+        SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', 'None')
 
     # Recommend other secure defaults
     SECURE_BROWSER_XSS_FILTER = True
@@ -366,6 +379,11 @@ else:
     SECURE_SSL_REDIRECT = False
     SESSION_COOKIE_SECURE = False
     CSRF_COOKIE_SECURE = False
+    # For local development it's convenient to keep SameSite='Lax' so cookies
+    # behave in a forgiving way. These can be overridden via .env when
+    # necessary.
+    CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'Lax')
+    SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax')
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
