@@ -423,14 +423,14 @@ class LiveChatViewSet(viewsets.ModelViewSet):
                     substitutions[missing] = ingredient_substitutions[missing]
             if user_ingredient_names.issuperset(recipe_ingredient_names):
                 suggestions_list.append({
-                    'recipe': self.get_serializer(recipe).data,
+                    'recipe': RecipeSerializer(recipe, context={'request': request}).data,
                     'missing_ingredients': [],
                     'message': 'You have all the ingredients for this meal!',
                     'substitutions': {}
                 })
             elif len(user_ingredient_names & recipe_ingredient_names) >= 4:
                 suggestions_list.append({
-                    'recipe': self.get_serializer(recipe).data,
+                    'recipe': RecipeSerializer(recipe, context={'request': request}).data,
                     'missing_ingredients': missing_ingredients,
                     'message': f"You are missing the following ingredients to prepare this meal: {', '.join(missing_ingredients)}. Please add or purchase them.",
                     'substitutions': substitutions

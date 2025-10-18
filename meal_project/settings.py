@@ -155,6 +155,21 @@ DATABASES = {
     'default': default_database_config
 }
 
+# During local test runs it's convenient to avoid connecting to the production
+# Postgres (which may be behind VPC/firewall). Allow an explicit env var
+# TEST_USE_SQLITE or automatically switch when Django is running tests.
+USE_TEST_SQLITE = os.getenv('TEST_USE_SQLITE', '').lower() in ('1', 'true', 'yes')
+
+# Django sets 'TEST' in sys.argv when running tests; detect that as a fallback.
+import sys
+if (len(sys.argv) > 1 and sys.argv[1] == 'test') or USE_TEST_SQLITE:
+    # Use an ephemeral SQLite DB file in the project for tests
+    TEST_SQLITE_PATH = os.getenv('TEST_SQLITE_PATH', str(BASE_DIR / 'test_db.sqlite3'))
+    DATABASES['default'] = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': TEST_SQLITE_PATH,
+    }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

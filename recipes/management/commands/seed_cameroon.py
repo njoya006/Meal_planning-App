@@ -357,13 +357,25 @@ class Command(BaseCommand):
                     syn_name = syn.strip()
                     if not syn_name:
                         continue
+                    # Check for existing synonym by name (global uniqueness). If it exists, skip creating a duplicate.
                     if dry_run:
-                        exists = IngredientSynonym.objects.filter(ingredient__name=name, name=syn_name).exists()
+                        exists = IngredientSynonym.objects.filter(name__iexact=syn_name).exists()
                         if not exists:
                             created["synonyms"] += 1
                     else:
-                        syn_obj, syn_created = IngredientSynonym.objects.get_or_create(ingredient=ing_obj, name=syn_name)
-                        if syn_created:
+                        existing = IngredientSynonym.objects.filter(name__iexact=syn_name).first()
+                        if existing:
+                            # If the existing synonym is linked to a different ingredient, log and skip to avoid unique constraint errors.
+                            try:
+                                existing_ing_name = existing.ingredient.name if existing.ingredient else None
+                            except Exception:
+                                existing_ing_name = None
+                            if existing_ing_name and existing_ing_name.lower() != (name or '').lower():
+                                self.stdout.write(self.style.WARNING(f"Synonym '{syn_name}' already exists for ingredient '{existing_ing_name}'; skipping for '{name}'"))
+                            # If it's linked to this ingredient, nothing to do.
+                        else:
+                            # Safe to create
+                            syn_obj = IngredientSynonym.objects.create(ingredient=ing_obj, name=syn_name)
                             created["synonyms"] += 1
 
                 # substitutions (store as IngredientSubstitution entries)
