@@ -1,0 +1,13 @@
+{
+  "cuisines": ["Cameroonian"],
+  "categories": ["Staple", "Vegetable", "Protein"],
+  "tags": ["stew", "soup"],
+  "basic_ingredients": [
+    {"name": "Rice", "region": "cm"},
+    {"name": "Palm oil", "region": "cm"}
+  ],
+  "ingredients": [
+    {"name": "Rice", "synonyms": ["White rice"], "substitutions": ["Maize"], "categories": ["Staple"], "tags": ["stew"]},
+    {"name": "Tomato", "synonyms": ["Tomatoes"], "substitutions": [], "categories": ["Vegetable"], "tags": ["soup"]}
+  ]
+}
