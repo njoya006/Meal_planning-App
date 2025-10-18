@@ -36,7 +36,17 @@
     {"name": "Cocoyam", "region": "cm"},
     {"name": "Sweet potato", "region": "cm"},
     {"name": "Millet", "region": "cm"},
-    {"name": "Sorghum", "region": "cm"}
+    {"name": "Sorghum", "region": "cm"},
+    {"name": "Salt", "region": "cm"},
+    {"name": "Sugar", "region": "cm"},
+    {"name": "Vegetable oil", "region": "cm"},
+    {"name": "Tomato paste", "region": "cm"},
+    {"name": "Stock cube", "region": "cm"},
+    {"name": "Flour", "region": "cm"},
+    {"name": "Water", "region": "cm"},
+    {"name": "Rice flour", "region": "cm"},
+    {"name": "Cassava flour", "region": "cm"},
+    {"name": "Plantain flour", "region": "cm"}
   ],
   "ingredients": [
     {"name":"Cassava","synonyms":["Manioc","Tapioca"],"substitutions":["Yam","Plantain"],"categories":["Staple"],"tags":["staple","gluten-free"]},
