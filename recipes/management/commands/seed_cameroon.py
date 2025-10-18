@@ -262,11 +262,10 @@ class Command(BaseCommand):
                 user = User.objects.get(username=username)
             except User.DoesNotExist:
                 raise CommandError(f"User '{username}' does not exist")
-
-    input_file = options.get("file")
-    input_format = options.get("format")
-    dry_run = bool(options.get("dry_run"))
-    assume_yes = bool(options.get("yes"))
+        input_file = options.get("file")
+        input_format = options.get("format")
+        dry_run = bool(options.get("dry_run"))
+        assume_yes = bool(options.get("yes"))
 
         # If file provided, try to load it and merge into data
         data = CAMEROON_DATA.copy()
