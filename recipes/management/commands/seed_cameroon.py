@@ -247,6 +247,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Perform a dry-run: report what would be created without writing to the database.",
         )
+        parser.add_argument(
+            "--yes",
+            action="store_true",
+            help="Skip interactive confirmation prompt and proceed to write to the database (use carefully).",
+        )
 
     def handle(self, *args, **options):
         User = get_user_model()
@@ -258,9 +263,10 @@ class Command(BaseCommand):
             except User.DoesNotExist:
                 raise CommandError(f"User '{username}' does not exist")
 
-        input_file = options.get("file")
-        input_format = options.get("format")
-        dry_run = bool(options.get("dry_run"))
+    input_file = options.get("file")
+    input_format = options.get("format")
+    dry_run = bool(options.get("dry_run"))
+    assume_yes = bool(options.get("yes"))
 
         # If file provided, try to load it and merge into data
         data = CAMEROON_DATA.copy()
@@ -291,6 +297,13 @@ class Command(BaseCommand):
                     obj.updated_by = user
                     obj.save()
                 return obj, created_flag
+
+        # If we're going to write to the DB, require explicit confirmation unless --yes was provided
+        if not dry_run and not assume_yes:
+            self.stdout.write(self.style.WARNING("About to write changes to the database."))
+            confirm = input("Type YES to proceed: ").strip()
+            if confirm != "YES":
+                raise CommandError("Aborted by user.")
 
         # Enter transaction when writing
         if not dry_run:
