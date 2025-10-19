@@ -51,6 +51,7 @@ coverage.xml
 *.cover
 hypothesis/
 .pytest_cache/
+test_db.sqlite3
 
 # Translations
 *.mo
@@ -112,6 +113,7 @@ debug_*.py
 *_test.py
 add_essential_ingredients.py
 show_ingredients_guide.py
+!recipes/tests_suite/test_*.py
 
 # Documentation files (optional - remove this line if you want to commit docs)
 INGREDIENT_DISCOVERY_GUIDE.md

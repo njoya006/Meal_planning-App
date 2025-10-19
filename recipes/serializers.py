@@ -1,6 +1,7 @@
 from rest_framework import serializers
+import json
 
-from .models import Recipe, Ingredient, RecipeIngredient, Category, Cuisine, Tag, RecipeRating, RecipeLike, RecipeComment
+from .models import Recipe, Ingredient, RecipeIngredient, Category, Cuisine, Tag, RecipeRating, RecipeLike, RecipeComment, IngredientPrice
 from .models import RecipeImage, InstructionStepImage
 from .models import LiveSession, LiveChatMessage
 from users.serializers import UserProfileSerializer
@@ -13,6 +14,38 @@ class IngredientSerializer(serializers.ModelSerializer):
         model = Ingredient
         fields = ['id', 'name']
         read_only_fields = ['id']
+
+
+class IngredientPriceEntrySerializer(serializers.ModelSerializer):
+    """Serializer used by verified contributors to manage ingredient prices/weights."""
+
+    price_per_kg = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, allow_null=True)
+    default_unit_weight_g = serializers.FloatField(required=False, allow_null=True)
+
+    class Meta:
+        model = Ingredient
+        fields = ['id', 'name', 'default_unit_weight_g', 'price_per_kg']
+        read_only_fields = ['id', 'name']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        price_obj = getattr(instance, 'price', None)
+        data['price_per_kg'] = str(price_obj.price_per_kg) if price_obj else None
+        return data
+
+    def update(self, instance, validated_data):
+        price_value = validated_data.pop('price_per_kg', serializers.empty)
+        instance = super().update(instance, validated_data)
+
+        if price_value is not serializers.empty:
+            if price_value is None:
+                IngredientPrice.objects.filter(ingredient=instance).delete()
+            else:
+                price_obj, _ = IngredientPrice.objects.get_or_create(ingredient=instance)
+                price_obj.price_per_kg = price_value
+                price_obj.save(update_fields=['price_per_kg', 'updated_at'])
+
+        return instance
 
 class CategorySerializer(serializers.ModelSerializer):
     """Serializer for Category model."""
@@ -87,16 +120,18 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
             # with suggestions for the frontend to handle
             pass
         
-        # Create new ingredient if it doesn't exist
-        ingredient, created = Ingredient.objects.get_or_create(
-            name__iexact=clean_name,
-            defaults={
-                'name': name.title(),  # Store with proper capitalization
-                'created_by': user,
-                'updated_by': user
-            }
-        )
-        
+        # Create new ingredient if it doesn't exist (use title-cased name)
+        try:
+            ingredient = Ingredient.objects.get(name__iexact=clean_name)
+        except Ingredient.DoesNotExist:
+            ingredient, created = Ingredient.objects.get_or_create(
+                name=name.title(),
+                defaults={
+                    'created_by': user,
+                    'updated_by': user
+                }
+            )
+
         data['ingredient'] = ingredient
         return data
 
@@ -129,7 +164,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     image_uploads = serializers.ListField(child=serializers.ImageField(), write_only=True, required=False)
     # Per-step images: accept list of {step_index, image, caption}
     step_images = serializers.SerializerMethodField()
-    step_images_upload = serializers.ListField(child=serializers.DictField(), write_only=True, required=False)
+    step_images_upload = serializers.JSONField(write_only=True, required=False)
 
     class Meta:
         model = Recipe
@@ -179,7 +214,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             data = data.copy()  # Don't modify original data
             ingredients_data = data.pop('ingredients')
             data['ingredients_data'] = ingredients_data
-        
+
         return super().to_internal_value(data)
 
     def _get_objs_by_names(self, model, names):
@@ -192,6 +227,124 @@ class RecipeSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({f'{model.__name__.lower()}_names': f'No {model.__name__} found with name "{name}".'})
         return objs
 
+    def _get_uploaded_files(self, key):
+        """Retrieve uploaded files from the request for a given key."""
+        request = self.context.get('request') if hasattr(self, 'context') else None
+        if request is None:
+            return []
+
+        files = []
+        candidate_keys = [key, f'{key}[]']
+
+        def _collect_from(source):
+            collected = []
+            if source is None:
+                return collected
+            if hasattr(source, 'getlist'):
+                for candidate in candidate_keys:
+                    for item in source.getlist(candidate):
+                        if item and hasattr(item, 'read'):
+                            collected.append(item)
+            else:
+                for candidate in candidate_keys:
+                    item = source.get(candidate)
+                    if item and hasattr(item, 'read'):
+                        collected.append(item)
+            return collected
+
+        data = getattr(request, 'data', None)
+        files.extend(_collect_from(data))
+
+        request_files = getattr(request, 'FILES', None)
+        files.extend(_collect_from(request_files))
+
+        raw_request = getattr(request, '_request', None)
+        if raw_request is not None:
+            files.extend(_collect_from(getattr(raw_request, 'FILES', None)))
+            files.extend(_collect_from(getattr(raw_request, 'POST', None)))
+
+        meta = getattr(request, 'META', None)
+        if isinstance(meta, dict):
+            meta_files = meta.get('files')
+            if isinstance(meta_files, (list, tuple)):
+                for name, file_obj in meta_files:
+                    if name in candidate_keys and file_obj and hasattr(file_obj, 'read'):
+                        files.append(file_obj)
+
+        # Preserve order and remove duplicates while keeping first occurrence
+        seen = set()
+        ordered = []
+        for file_obj in files:
+            identifier = id(file_obj)
+            if identifier not in seen:
+                seen.add(identifier)
+                ordered.append(file_obj)
+
+        return ordered
+
+    def _normalize_step_images_payload(self, raw_value):
+        """Accept JSON strings or lists and pair with uploaded files appropriately."""
+        uploaded_files = self._get_uploaded_files('step_images_upload')
+
+        # QueryDict may provide list containing both string metadata and files; strip files here
+        if isinstance(raw_value, list):
+            non_file_entries = [entry for entry in raw_value if not hasattr(entry, 'read')]
+            if len(non_file_entries) == 1:
+                parsed_source = non_file_entries[0]
+            elif len(non_file_entries) > 1:
+                parsed_source = non_file_entries
+            else:
+                parsed_source = []
+        else:
+            parsed_source = raw_value
+
+        parsed = parsed_source
+        if isinstance(parsed, str):
+            try:
+                parsed = json.loads(parsed)
+            except json.JSONDecodeError:
+                parsed = []
+        elif parsed is None:
+            parsed = []
+
+        if isinstance(parsed, dict):
+            parsed = [parsed]
+        elif not isinstance(parsed, list):
+            parsed = []
+
+        normalized = []
+        file_index = 0
+        for item in parsed:
+            if isinstance(item, str):
+                try:
+                    item = json.loads(item)
+                except json.JSONDecodeError:
+                    item = {'step_index': item}
+            elif not isinstance(item, dict):
+                item = {'step_index': item}
+
+            image_obj = item.get('image')
+            if isinstance(image_obj, str) or image_obj is None:
+                image_obj = uploaded_files[file_index] if file_index < len(uploaded_files) else None
+                file_index += 1 if image_obj is not None else 0
+
+            normalized.append({
+                'step_index': item.get('step_index'),
+                'caption': item.get('caption', ''),
+                'image': image_obj,
+            })
+
+        # Attach any leftover uploaded files that did not map to payload entries
+        while file_index < len(uploaded_files):
+            normalized.append({
+                'step_index': None,
+                'caption': '',
+                'image': uploaded_files[file_index],
+            })
+            file_index += 1
+
+        return normalized
+
     def create(self, validated_data):
         # Extract ingredients and related lists
         ingredients_data = validated_data.pop('ingredients_data', [])
@@ -199,9 +352,14 @@ class RecipeSerializer(serializers.ModelSerializer):
         cuisine_names = validated_data.pop('cuisine_names', [])
         tag_names = validated_data.pop('tag_names', [])
 
-        # Extract image uploads lists
-        image_uploads = validated_data.pop('image_uploads', [])
-        step_images_upload = validated_data.pop('step_images_upload', [])
+    # Extract image uploads lists
+        image_uploads = validated_data.pop('image_uploads', None)
+        if not image_uploads:
+            image_uploads = self._get_uploaded_files('image_uploads')
+        else:
+            image_uploads = [f for f in image_uploads if f]
+        step_images_upload_raw = validated_data.pop('step_images_upload', [])
+        step_images_upload = self._normalize_step_images_payload(step_images_upload_raw)
 
         # Handle single image upload (backwards-compatible)
         image_upload = validated_data.pop('image_upload', None)
@@ -259,6 +417,12 @@ class RecipeSerializer(serializers.ModelSerializer):
             })
 
         # Handle multiple recipe image uploads (if any)
+        # Enforce max 3 images per recipe
+        if len(image_uploads) > 3:
+            # delete the created recipe to avoid orphan
+            recipe.delete()
+            raise serializers.ValidationError({'image_uploads': 'A recipe may include at most 3 images.'})
+
         for idx, img in enumerate(image_uploads):
             RecipeImage.objects.create(
                 recipe=recipe,
@@ -295,7 +459,15 @@ class RecipeSerializer(serializers.ModelSerializer):
         cuisine_names = validated_data.pop('cuisine_names', None)
         tag_names = validated_data.pop('tag_names', None)
         image_uploads = validated_data.pop('image_uploads', None)
-        step_images_upload = validated_data.pop('step_images_upload', None)
+        if image_uploads:
+            image_uploads = [f for f in image_uploads if f]
+        else:
+            image_uploads = None
+        step_images_upload_raw = validated_data.pop('step_images_upload', None)
+        if step_images_upload_raw is not None:
+            step_images_upload = self._normalize_step_images_payload(step_images_upload_raw)
+        else:
+            step_images_upload = None
 
         # Handle single image upload (backwards-compatible)
         image_upload = validated_data.pop('image_upload', None)
@@ -388,28 +560,27 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         """Validate recipe data."""
-        # Check ingredients from multiple possible sources
         ingredients_data = []
-        
-        # First try the mapped ingredients_data (from our to_internal_value mapping)
+
         if 'ingredients_data' in data:
             ingredients_data = data['ingredients_data']
-        # Fallback to initial_data for direct frontend calls
         elif hasattr(self, 'initial_data') and 'ingredients' in self.initial_data:
             ingredients_data = self.initial_data['ingredients']
-        
+
         if len(ingredients_data) < 4:
             raise serializers.ValidationError('A recipe must have at least 4 ingredients.')
-        
+
         instructions = data.get('instructions', '')
         if not instructions or len(instructions.strip()) < 20:
             raise serializers.ValidationError('Please provide well-explained steps (at least 20 characters).')
+
         return data
+
 
 class RecipeRatingSerializer(serializers.ModelSerializer):
     """Serializer for viewing RecipeRating model."""
     user = UserProfileSerializer(read_only=True)
-    
+
     class Meta:
         model = RecipeRating
         fields = ['id', 'user', 'rating', 'review', 'created_at', 'updated_at']
@@ -516,8 +687,25 @@ class LiveSessionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LiveSession
-        fields = ['id', 'host', 'host_id', 'title', 'description', 'slug', 'is_live', 'started_at', 'ended_at', 'stream_key', 'viewer_count', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'slug', 'stream_key', 'viewer_count', 'created_at', 'updated_at']
+        fields = [
+            'id',
+            'host',
+            'host_id',
+            'title',
+            'description',
+            'slug',
+            'is_live',
+            'started_at',
+            'ended_at',
+            'stream_key',
+            'viewer_count',
+            'provider',
+            'external_room_name',
+            'external_room_url',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'slug', 'stream_key', 'viewer_count', 'provider', 'external_room_name', 'external_room_url', 'created_at', 'updated_at']
 
 
 class LiveChatMessageSerializer(serializers.ModelSerializer):

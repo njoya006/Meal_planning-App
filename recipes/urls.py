@@ -1,11 +1,12 @@
 from rest_framework.routers import DefaultRouter
 from django.urls import path
 from .views import RecipeViewSet, IngredientViewSet, RecipeRatingViewSet, RecipeLikeViewSet, RecipeCommentViewSet, RecipeReviewsView
-from .views import LiveSessionViewSet, LiveChatViewSet
+from .views import LiveSessionViewSet, LiveChatViewSet, IngredientPriceViewSet
 
 router = DefaultRouter()
 router.register(r'', RecipeViewSet, basename='recipe')  # Register at root for /api/recipes/ (explicit basename)
 router.register(r'ingredients', IngredientViewSet)
+router.register(r'ingredient-prices', IngredientPriceViewSet, basename='ingredient-price')
 router.register(r'ratings', RecipeRatingViewSet)
 router.register(r'likes', RecipeLikeViewSet)
 router.register(r'comments', RecipeCommentViewSet)

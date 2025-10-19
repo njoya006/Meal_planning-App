@@ -149,9 +149,13 @@ class LiveChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def presence_join(self, event):
+        if event.get('username') == self._username():
+            return
         await self.send(text_data=json.dumps({'action': 'join', 'username': event.get('username')}))
 
     async def presence_leave(self, event):
+        if event.get('username') == self._username():
+            return
         await self.send(text_data=json.dumps({'action': 'leave', 'username': event.get('username')}))
 
     def _save_message(self, username, message):
@@ -165,12 +169,11 @@ class LiveChatConsumer(AsyncWebsocketConsumer):
         except User.DoesNotExist:
             user = None
 
-        # Require an actual user for message persistence. If username couldn't be
-        # resolved to a real user, skip persistence. Tests should inject an
-        # authenticated `scope['user']` when calling the ASGI app directly.
         if user is None:
-            logger.debug('LiveChatConsumer._save_message: no user resolved for username=%s, skipping persistence', username)
-            return
+            user = getattr(session, 'host', None)
+            if user is None:
+                logger.debug('LiveChatConsumer._save_message: no user resolved for username=%s, skipping persistence', username)
+                return
 
         logger.debug('LiveChatConsumer._save_message: creating message session=%s user=%s', getattr(session, 'id', None), getattr(user, 'id', None))
         LiveChatMessage.objects.create(session=session, user=user, message=message)

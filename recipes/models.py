@@ -16,6 +16,13 @@ class Ingredient(models.Model):
         default=0, 
         help_text=_('Calories per 100g')
     )
+    # Estimated grams per single non-weight unit (e.g., grams per piece or per cup)
+    default_unit_weight_g = models.FloatField(
+        _('Default unit weight (g)'),
+        null=True,
+        blank=True,
+        help_text=_('Default grams for a single unit (e.g., grams per piece or per cup) used for cost estimation of non-weight units')
+    )
     protein_per_100g = models.FloatField(
         _('Protein per 100g (g)'), 
         default=0, 
@@ -443,6 +450,16 @@ class BasicIngredient(models.Model):
     def __str__(self):
         return f"{self.name} ({self.region})"
 
+
+class IngredientPrice(models.Model):
+    """Optional per-ingredient price (per kilogram) for more accurate cost estimates."""
+    ingredient = models.OneToOneField(Ingredient, on_delete=models.CASCADE, related_name='price')
+    price_per_kg = models.DecimalField(max_digits=10, decimal_places=2, help_text='Price per kilogram in local currency (e.g., CFA)')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.ingredient.name}: {self.price_per_kg} per kg"
+
 class UserPantry(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='pantry')
     ingredients = models.ManyToManyField('Ingredient', blank=True, help_text="Ingredients this user always has available.")
@@ -572,6 +589,13 @@ class LiveSession(models.Model):
     Note: This model only stores metadata and control flags. Actual video
     streaming should use a media server (RTMP/WebRTC) or third-party provider.
     """
+    PROVIDER_LOCAL = 'local'
+    PROVIDER_DAILY = 'daily'
+    PROVIDER_CHOICES = [
+        (PROVIDER_LOCAL, 'Local'),
+        (PROVIDER_DAILY, 'Daily'),
+    ]
+
     host = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -586,6 +610,26 @@ class LiveSession(models.Model):
     # Random stream key for RTMP/ingest identification; regenerate as needed
     stream_key = models.CharField(max_length=64, unique=True, blank=True)
     viewer_count = models.IntegerField(default=0)
+    provider = models.CharField(
+        max_length=32,
+        choices=PROVIDER_CHOICES,
+        default=PROVIDER_LOCAL,
+        help_text='Streaming backend powering this live session.'
+    )
+    external_room_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text='Identifier for the external streaming room (e.g., Daily room name).'
+    )
+    external_room_url = models.URLField(
+        blank=True,
+        help_text='Join URL provided by the external streaming provider.'
+    )
+    external_room_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Raw provisioning payload returned by the streaming provider.'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

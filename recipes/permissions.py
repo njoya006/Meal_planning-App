@@ -45,3 +45,18 @@ class IsLiveSessionHost(permissions.BasePermission):
 
         # Object-level permissions: only the host who created the session can update/delete it
         return request.user and request.user.is_authenticated and obj.host == request.user
+
+
+class IsVerifiedContributorOrStaff(permissions.BasePermission):
+    """Allow access to verified contributors or staff members only."""
+
+    message = "Only verified contributors or staff may manage ingredient prices."
+
+    def has_permission(self, request, view):
+        user = getattr(request, 'user', None)
+        if not user or not user.is_authenticated:
+            return False
+        return bool(getattr(user, 'is_verified_contributor', False) or user.is_staff)
+
+    def has_object_permission(self, request, view, obj):
+        return self.has_permission(request, view)

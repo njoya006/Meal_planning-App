@@ -22,7 +22,7 @@ from . import csrf_views
 from .test_views import CORSTestView, MediaTestView
 from recipes.views import ws_token_view
 from rest_framework.routers import DefaultRouter
-from recipes.views import LiveSessionViewSet, LiveChatViewSet
+from recipes.views import LiveSessionViewSet, LiveChatViewSet, IngredientPriceDashboardView
 from .views import HomeView
 
 # Expose live endpoints at top-level /api/
@@ -47,5 +47,6 @@ urlpatterns = [
     path('api/', include('api.urls')),
     path('api/', include(router.urls)),
     path('billing/', include('billing.urls')),
+    path('pricing/ingredients/', IngredientPriceDashboardView.as_view(), name='ingredient-price-dashboard'),
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

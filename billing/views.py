@@ -10,9 +10,17 @@ from .models import Plan, Subscription
 from .serializers import PlanSerializer, SubscriptionSerializer
 from .models import WebhookEvent
 
-import stripe
+def _get_stripe():
+    """Lazy import stripe and configure the API key.
 
-stripe.api_key = os.getenv('STRIPE_SECRET_KEY', '')
+    Importing stripe at module import time can cause import-time side
+    effects or delays. Import it lazily when a view needs it.
+    """
+    import importlib, os
+
+    stripe = importlib.import_module('stripe')
+    stripe.api_key = os.getenv('STRIPE_SECRET_KEY', '')
+    return stripe
 
 
 class PlanViewSet(viewsets.ReadOnlyModelViewSet):
@@ -37,6 +45,7 @@ def create_checkout(request):
 
     # Minimal session creation - backend dev must configure success/cancel URLs
     try:
+        stripe = _get_stripe()
         session = stripe.checkout.Session.create(
             mode='subscription',
             line_items=[{'price': plan.metadata.get('provider_price_id') or plan.metadata.get('provider_plan_id'), 'quantity': 1}],
@@ -95,6 +104,7 @@ def stripe_webhook(request):
     sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
     webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET', '')
     try:
+        stripe = _get_stripe()
         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret) if webhook_secret else stripe.Event.construct_from(request.data, stripe.api_key)
     except Exception as e:
         return Response({'error': str(e)}, status=400)

@@ -69,17 +69,7 @@ class RecipeAdmin(admin.ModelAdmin):
         # Optimize query to fetch contributor data in one go
         return super().get_queryset(request).select_related('contributor')
 
-@admin.register(Ingredient)
-class IngredientAdmin(admin.ModelAdmin):
-    """
-    Customizes the display of the Ingredient model in the Django admin.
-    """
-    list_display = ['name', 'created_by', 'updated_by', 'created_at', 'updated_at']
-    search_fields = ['name']
-    list_filter = ['created_by']
-    raw_id_fields = ('created_by', 'updated_by')
-    date_hierarchy = 'created_at'
-    ordering = ('-created_at',)
+# IngredientAdmin is declared later; avoid duplicate registration.
 
 @admin.register(BadIngredient)
 class BadIngredientAdmin(admin.ModelAdmin):
@@ -152,6 +142,36 @@ class BasicIngredientAdmin(admin.ModelAdmin):
     search_fields = ['name']
     list_display = ['name', 'region']
     list_filter = ['region']
+
+@admin.register(Ingredient)
+class IngredientAdmin(admin.ModelAdmin):
+    list_display = ['name', 'default_unit_weight_g', 'created_by', 'updated_by', 'created_at', 'updated_at']
+    list_editable = ('default_unit_weight_g',)
+    search_fields = ['name']
+    list_filter = ['created_by']
+    raw_id_fields = ('created_by', 'updated_by')
+    date_hierarchy = 'created_at'
+    ordering = ('-created_at',)
+    # Allow editing IngredientPrice inline when editing Ingredient
+    # IngredientPrice is a OneToOne relation so use StackedInline with max_num=1
+    class IngredientPriceInline(admin.StackedInline):
+        from .models import IngredientPrice as _IP
+        model = _IP
+        can_delete = False
+        verbose_name = 'Price (per kg)'
+        verbose_name_plural = 'Price (per kg)'
+        fk_name = 'ingredient'
+        max_num = 1
+
+    inlines = [IngredientPriceInline]
+
+from .models import IngredientPrice
+
+@admin.register(IngredientPrice)
+class IngredientPriceAdmin(admin.ModelAdmin):
+    list_display = ('ingredient', 'price_per_kg', 'updated_at')
+    search_fields = ('ingredient__name',)
+    raw_id_fields = ('ingredient',)
 
 @admin.register(UserPantry)
 class UserPantryAdmin(admin.ModelAdmin):

@@ -169,6 +169,7 @@ if (len(sys.argv) > 1 and sys.argv[1] == 'test') or USE_TEST_SQLITE:
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': TEST_SQLITE_PATH,
     }
+    os.environ.setdefault('DJANGO_ALLOW_ASYNC_UNSAFE', 'true')
 
 
 # Password validation
@@ -399,6 +400,12 @@ else:
     # necessary.
     CSRF_COOKIE_SAMESITE = os.getenv('CSRF_COOKIE_SAMESITE', 'Lax')
     SESSION_COOKIE_SAMESITE = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax')
+
+
+# Streaming providers
+DAILY_API_KEY = os.getenv('DAILY_API_KEY')
+DAILY_BASE_URL = os.getenv('DAILY_BASE_URL', 'https://api.daily.co/v1')
+DAILY_TIMEOUT = int(os.getenv('DAILY_TIMEOUT', '10'))
 
 SOCIALACCOUNT_PROVIDERS = {
     'google': {

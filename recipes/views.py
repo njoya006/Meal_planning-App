@@ -1,3 +1,7 @@
+import logging
+from datetime import timedelta
+from typing import Optional
+
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
@@ -49,15 +53,18 @@ class RecipeReviewsView(APIView):
         return Response(serializer.errors, status=400)
 from difflib import get_close_matches
 
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import models
-from django.db.models import Count, Avg
+from django.db.models import Count, Avg, Q
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
+from django.views.generic import TemplateView
 from rest_framework import status, viewsets, generics, mixins, permissions
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.exceptions import APIException
 
 from .bad_ingredients import (
     get_bad_ingredient_pairs, 
@@ -65,8 +72,8 @@ from .bad_ingredients import (
     get_bad_ingredient_categories, 
     get_ingredient_substitutions
 )
-from .models import Recipe, Ingredient, Category, Cuisine, Tag, RecipeRating, RecipeLike, RecipeComment, LiveSession, LiveChatMessage
-from .permissions import IsVerifiedContributor, IsLiveSessionHost
+from .models import Recipe, Ingredient, Category, Cuisine, Tag, RecipeRating, RecipeLike, RecipeComment, LiveSession, LiveChatMessage, IngredientPrice
+from .permissions import IsVerifiedContributor, IsLiveSessionHost, IsVerifiedContributorOrStaff
 from .serializers import (
     RecipeSerializer, 
     IngredientSerializer, 
@@ -78,15 +85,36 @@ from .serializers import (
     RecipeLikeSerializer,
     RecipeLikeCreateSerializer,
     RecipeCommentSerializer,
-    RecipeCommentCreateSerializer
-    , LiveSessionSerializer, LiveChatMessageSerializer
+    RecipeCommentCreateSerializer,
+    LiveSessionSerializer,
+    LiveChatMessageSerializer,
+    IngredientPriceEntrySerializer
 )
 from .models import WebsocketToken
+from .integrations.daily import DailyClient, DailyAPIError
 import datetime, jwt, secrets
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
+
+
+logger = logging.getLogger(__name__)
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework import status
+from decimal import Decimal
+from django.shortcuts import get_object_or_404
+
+# Fallback price map (per kg) used when IngredientPrice is missing
+PRICE_MAP = {
+    'rice': Decimal('800'),
+    'plantain': Decimal('400'),
+    'cassava': Decimal('300'),
+    'beans': Decimal('600'),
+    'beef': Decimal('1200'),
+    'chicken': Decimal('900'),
+    'fish': Decimal('900'),
+    'palm oil': Decimal('1000'),
+    'groundnuts': Decimal('700'),
+}
 
 
 @api_view(['POST'])
@@ -110,6 +138,13 @@ def ws_token_view(request):
     token = jwt.encode(payload, getattr(__import__('django.conf').conf.settings, 'SECRET_KEY'), algorithm='HS256')
     return Response({'ws_token': token, 'expires_in': ttl}, status=status.HTTP_200_OK)
 
+
+class StreamingProvisioningError(APIException):
+    status_code = status.HTTP_502_BAD_GATEWAY
+    default_detail = 'Unable to provision streaming provider.'
+    default_code = 'stream_provision_failed'
+
+
 class RecipeViewSet(viewsets.ModelViewSet):
     # Provide a default queryset and serializer so DRF can serve list/retrieve endpoints
     queryset = Recipe.objects.filter(is_active=True).order_by('-created_at')
@@ -117,12 +152,71 @@ class RecipeViewSet(viewsets.ModelViewSet):
     # Allow multipart form uploads (images) in create/update
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     permission_classes = [IsAuthenticatedOrReadOnly]
+    lookup_field = 'pk'
+    lookup_value_regex = r'\d+'  # Keep detail routes numeric so /ingredient-prices/ hits the correct viewset
 
     def get_permissions(self):
         # Allow anyone to read. Require verified contributor for unsafe methods.
         if self.request.method in permissions.SAFE_METHODS:
             return [permissions.AllowAny()]
         return [IsVerifiedContributor()]
+
+    def perform_create(self, serializer):
+        user = self.request.user if getattr(self.request, 'user', None) and self.request.user.is_authenticated else None
+        serializer.save(contributor=user)
+
+    @action(detail=True, methods=['get'], url_path='grocery-list', permission_classes=[IsAuthenticated])
+    def grocery_list(self, request, pk=None):
+        """Return a grocery list for this recipe with per-ingredient cost estimates and total."""
+        recipe = self.get_object()
+        items = []
+        total = Decimal('0')
+        for ri in recipe.recipeingredient_set.select_related('ingredient').all():
+            ing = ri.ingredient
+            qty = Decimal(str(ri.quantity))
+            unit = (ri.unit or '').lower()
+
+            # Determine quantity in kg when possible
+            qty_kg = None
+            if unit == 'kg':
+                qty_kg = qty
+            elif unit == 'g':
+                qty_kg = qty / Decimal('1000')
+            else:
+                # Unknown unit: skip cost calculation (could be 'piece', 'cup', etc.)
+                qty_kg = None
+
+            # Determine price_per_kg
+            price_per_kg = None
+            try:
+                price_obj = getattr(ing, 'price', None)
+                if price_obj and getattr(price_obj, 'price_per_kg', None) is not None:
+                    price_per_kg = Decimal(str(price_obj.price_per_kg))
+                else:
+                    # fallback lookup by name keywords
+                    name = ing.name.lower()
+                    for key, p in PRICE_MAP.items():
+                        if key in name:
+                            price_per_kg = p
+                            break
+            except Exception:
+                price_per_kg = None
+
+            cost = None
+            if qty_kg is not None and price_per_kg is not None:
+                cost = (qty_kg * price_per_kg).quantize(Decimal('0.01'))
+                total += cost
+
+            items.append({
+                'ingredient_id': ing.id,
+                'ingredient_name': ing.name,
+                'quantity': float(ri.quantity),
+                'unit': ri.unit,
+                'unit_price_per_kg': float(price_per_kg) if price_per_kg is not None else None,
+                'cost_estimate': float(cost) if cost is not None else None
+            })
+
+        return Response({'recipe_id': recipe.id, 'items': items, 'total_estimate': float(total)})
 
 
 class LiveSessionViewSet(viewsets.ModelViewSet):
@@ -145,13 +239,97 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
         return super().get_permissions()
 
     def perform_create(self, serializer):
-        """Ensure the host is set to the requesting user when creating a session."""
+        """Ensure the host is set and provision streaming resources when configured."""
         user = self.request.user if getattr(self.request, 'user', None) and self.request.user.is_authenticated else None
+        session = serializer.save(host=user) if user is not None else serializer.save()
+        try:
+            self._provision_external_room(session)
+        except StreamingProvisioningError:
+            session.delete()
+            raise
+
+    def _provision_external_room(self, session: LiveSession) -> None:
+        client = DailyClient.from_settings()
+        if not client.is_configured():
+            logger.debug("Daily client not configured; skipping room provisioning.")
+            return
+
+        if session.provider == LiveSession.PROVIDER_DAILY and session.external_room_name:
+            logger.debug("Live session %s already has a Daily room provisioned.", session.pk)
+            return
+
+        room_name = self._build_room_name(session)
+        try:
+            room_response = client.create_room(name=room_name, properties=self._build_room_properties())
+        except DailyAPIError as exc:
+            logger.warning("Daily room provisioning failed for session %s: %s", session.pk, exc)
+            raise StreamingProvisioningError(detail=str(exc))
+
+        session.provider = LiveSession.PROVIDER_DAILY
+        session.external_room_name = room_response.get('name', room_name)
+        session.external_room_url = room_response.get('url', '')
+        session.external_room_data = room_response
+        session.save(update_fields=['provider', 'external_room_name', 'external_room_url', 'external_room_data'])
+
+    def _build_room_name(self, session: LiveSession) -> str:
+        slug_value = session.slug or f'session-{session.pk or secrets.token_hex(4)}'
+        base = slug_value.replace('_', '-').lower()
+        candidate = f"{base}-{session.pk}" if session.pk and str(session.pk) not in base else base
+        return candidate[:120]
+
+    def _build_room_properties(self) -> dict:
+        expires_at = timezone.now() + timedelta(hours=6)
+        return {
+            'enable_chat': True,
+            'enable_screenshare': True,
+            'eject_at_room_exp': True,
+            'exp': int(expires_at.timestamp()),
+        }
+
+    def _mint_streaming_token(self, session: LiveSession, request) -> Optional[dict]:
+        client = DailyClient.from_settings()
+        if not (client.is_configured() and session.provider == LiveSession.PROVIDER_DAILY and session.external_room_name):
+            return None
+
+        user = getattr(request, 'user', None)
+        user_id = None
+        user_name = 'viewer'
         if user is not None:
-            serializer.save(host=user)
-        else:
-            # Fallback: allow serializer to raise validation error for missing host
-            serializer.save()
+            if getattr(user, 'is_authenticated', False):
+                user_id = str(getattr(user, 'pk', '')) or None
+            user_name = (getattr(user, 'get_full_name', lambda: '')() or getattr(user, 'get_username', lambda: 'viewer')()).strip() or 'viewer'
+
+        is_owner = user is not None and getattr(user, 'is_authenticated', False) and session.host_id == getattr(user, 'id', None)
+        expires_at = timezone.now() + timedelta(hours=1)
+        try:
+            token_payload = client.create_token(
+                room_name=session.external_room_name,
+                is_owner=is_owner,
+                user_name=user_name,
+                user_id=user_id,
+                exp=int(expires_at.timestamp()),
+            )
+        except DailyAPIError as exc:
+            logger.warning("Daily token creation failed for session %s: %s", session.pk, exc)
+            raise StreamingProvisioningError(detail=str(exc))
+
+        token = token_payload.get('token')
+        if not token:
+            logger.warning("Daily token response missing token for session %s: %s", session.pk, token_payload)
+            raise StreamingProvisioningError(detail='Streaming provider returned an invalid token response.')
+
+        payload = {
+            'token': token,
+            'room_name': session.external_room_name,
+            'provider': session.provider,
+            'expires_at': int(expires_at.timestamp()),
+        }
+        if session.external_room_url:
+            payload['room_url'] = session.external_room_url
+        if is_owner:
+            payload['is_owner'] = True
+
+        return payload
 
     @action(detail=True, methods=['post'])
     def start(self, request, slug=None, *args, **kwargs):
@@ -160,6 +338,12 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Only the host can start the session.'}, status=status.HTTP_403_FORBIDDEN)
         if session.is_live:
             return Response({'detail': 'Session already live.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            self._provision_external_room(session)
+        except StreamingProvisioningError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
         from django.utils import timezone
         session.is_live = True
         session.started_at = timezone.now()
@@ -188,21 +372,34 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
         session.viewer_count = models.F('viewer_count') + 1
         session.save()
         session.refresh_from_db()
-        return Response({'detail': 'Joined', 'viewer_count': session.viewer_count, 'stream_key': session.stream_key})
+        payload = {
+            'detail': 'Joined',
+            'viewer_count': session.viewer_count,
+            'stream_key': session.stream_key,
+            'provider': session.provider,
+        }
+        if session.provider == LiveSession.PROVIDER_DAILY:
+            payload['room_url'] = session.external_room_url
+            payload['room_name'] = session.external_room_name
+        return Response(payload)
 
     @action(detail=True, methods=['post'])
     def token(self, request, slug=None, *args, **kwargs):
         """Issue a short-lived signed viewer token for playback (MVP)."""
         session = self.get_object()
+        streaming_payload = self._mint_streaming_token(session, request)
+        if streaming_payload:
+            return Response(streaming_payload)
+
         import jwt, time
         secret = getattr(__import__('django.conf').conf.settings, 'SECRET_KEY')
         payload = {
             'session_id': session.id,
             'session_slug': session.slug,
-            'exp': int(time.time()) + 60 * 15,  # 15 minutes
+            'exp': int(time.time()) + 60 * 15,
         }
         token = jwt.encode(payload, secret, algorithm='HS256')
-        return Response({'token': token})
+        return Response({'token': token, 'provider': session.provider})
 
     @action(detail=True, methods=['post'])
     def regenerate_key(self, request, slug=None, *args, **kwargs):
@@ -656,6 +853,52 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
             'region': region,
             'count': basic_ingredients.count()
         })
+
+
+class IngredientPricePagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 200
+
+
+class IngredientPriceViewSet(mixins.ListModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    """Allow verified contributors and staff to manage ingredient prices and default weights."""
+
+    serializer_class = IngredientPriceEntrySerializer
+    permission_classes = [IsAuthenticated, IsVerifiedContributorOrStaff]
+    parser_classes = [JSONParser]
+    pagination_class = IngredientPricePagination
+    http_method_names = ['get', 'patch']
+
+    def get_queryset(self):
+        qs = Ingredient.objects.all().select_related('price').order_by('name')
+        search = (self.request.query_params.get('search') or '').strip()
+        if search:
+            qs = qs.filter(name__icontains=search)
+
+        missing = (self.request.query_params.get('missing') or '').strip().lower()
+        if missing == 'price':
+            qs = qs.filter(Q(price__isnull=True) | Q(price__price_per_kg__isnull=True))
+        elif missing == 'weight':
+            qs = qs.filter(Q(default_unit_weight_g__isnull=True) | Q(default_unit_weight_g=0))
+        elif missing in {'either', 'any'}:
+            qs = qs.filter(
+                Q(default_unit_weight_g__isnull=True) |
+                Q(default_unit_weight_g=0) |
+                Q(price__isnull=True) |
+                Q(price__price_per_kg__isnull=True)
+            )
+        return qs
+
+
+class IngredientPriceDashboardView(LoginRequiredMixin, UserPassesTestMixin, TemplateView):
+    """Simple HTML dashboard for editing ingredient prices via the API."""
+
+    template_name = "pricing/ingredient_prices.html"
+
+    def test_func(self):
+        user = self.request.user
+        return bool(getattr(user, 'is_verified_contributor', False) or user.is_staff)
 
 class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all().order_by('name')

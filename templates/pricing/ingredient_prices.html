@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Ingredient Price Manager</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; background: #f8f8f8; color: #222; }
+        h1 { margin-bottom: 0.5rem; }
+        p.helper { max-width: 48rem; }
+        #controls { display: flex; gap: 0.5rem; margin-bottom: 1rem; align-items: center; }
+        #ingredients-table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+        #ingredients-table th, #ingredients-table td { border: 1px solid #e0e0e0; padding: 0.5rem; text-align: left; }
+        #ingredients-table th { background: #fafafa; }
+        #ingredients-table td button { padding: 0.35rem 0.75rem; }
+        .status { margin-top: 1rem; font-weight: bold; }
+        .status.error { color: #c0392b; }
+        .status.success { color: #2c7a0c; }
+        input[type="number"] { width: 6rem; }
+        input[type="text"] { width: 14rem; padding: 0.4rem; }
+        button.primary { background: #1f8a4c; color: #fff; border: none; cursor: pointer; border-radius: 4px; }
+        button.primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <h1>Ingredient Price Manager</h1>
+    <p class="helper">
+        Use this page to review and update per-ingredient price per kilogram and default unit weights (grams per typical piece/cup).
+        Changes take effect immediately and power the grocery list cost estimator.
+    </p>
+
+    <form id="controls">
+        {% csrf_token %}
+        <label for="search">Search</label>
+        <input id="search" name="search" type="text" placeholder="e.g. plantain" />
+        <button type="submit" class="primary">Search</button>
+        <button type="button" id="refresh">Reset</button>
+        <label for="missing">Filter</label>
+        <select id="missing" name="missing">
+            <option value="">All</option>
+            <option value="price">Missing price</option>
+            <option value="weight">Missing weight</option>
+            <option value="either">Missing price or weight</option>
+        </select>
+    </form>
+
+    <table id="ingredients-table" aria-describedby="table-help">
+        <thead>
+            <tr>
+                <th scope="col">Ingredient</th>
+                <th scope="col">Default weight (g)</th>
+                <th scope="col">Price per kg</th>
+                <th scope="col">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="ingredients-body">
+            <tr><td colspan="4">Loading...</td></tr>
+        </tbody>
+    </table>
+    <div id="pagination" class="helper" aria-live="polite"></div>
+    <p id="table-help" class="helper">Leave a field blank to clear that value. All changes require pressing Save on each row.</p>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <script>
+        const csrfToken = document.querySelector('#controls input[name="csrfmiddlewaretoken"]').value;
+    const tableBody = document.getElementById('ingredients-body');
+    const statusEl = document.getElementById('status');
+    const searchForm = document.getElementById('controls');
+    const refreshBtn = document.getElementById('refresh');
+    const paginationEl = document.getElementById('pagination');
+    const filterSelect = document.getElementById('missing');
+    const paginationState = { next: null, previous: null, count: 0, currentPage: 1 };
+    let currentQuery = '';
+    let currentMissing = '';
+
+        function setStatus(message, type = '') {
+            statusEl.textContent = message;
+            statusEl.className = type ? `status ${type}` : 'status';
+        }
+
+        async function fetchIngredients(options = {}) {
+            const { query = currentQuery, pageUrl = null, missing = currentMissing } = options;
+            if (typeof query === 'string' && query !== currentQuery) {
+                currentQuery = query;
+            }
+            if (typeof missing === 'string' && missing !== currentMissing) {
+                currentMissing = missing;
+            }
+            setStatus('');
+            tableBody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+            try {
+                let url;
+                if (pageUrl) {
+                    url = new URL(pageUrl, window.location.origin);
+                } else {
+                    url = new URL('/api/recipes/ingredient-prices/', window.location.origin);
+                    if (currentQuery) {
+                        url.searchParams.set('search', currentQuery);
+                    }
+                    if (currentMissing) {
+                        url.searchParams.set('missing', currentMissing);
+                    }
+                }
+                const response = await fetch(url, { credentials: 'same-origin' });
+                if (!response.ok) {
+                    throw new Error(`Failed to load ingredients (${response.status})`);
+                }
+                const data = await response.json();
+                const items = Array.isArray(data) ? data : (data.results || []);
+                const meta = Array.isArray(data)
+                    ? { count: items.length, next: null, previous: null, currentPage: Number(url.searchParams.get('page') || 1), itemsPerPage: items.length }
+                    : {
+                        count: typeof data.count === 'number' ? data.count : items.length,
+                        next: data.next || null,
+                        previous: data.previous || null,
+                        currentPage: Number(url.searchParams.get('page') || 1),
+                        itemsPerPage: items.length,
+                    };
+                renderTable(items);
+                updatePagination(meta);
+            } catch (error) {
+                console.error(error);
+                tableBody.innerHTML = '<tr><td colspan="4">Unable to load data.</td></tr>';
+                setStatus('Unable to load ingredient data. Please try again.', 'error');
+                updatePagination({ count: 0, next: null, previous: null, currentPage: 1, itemsPerPage: 0 });
+            }
+        }
+
+        function updatePagination(meta) {
+            const { count = 0, next = null, previous = null, currentPage = 1, itemsPerPage = 0 } = meta || {};
+            paginationState.next = next;
+            paginationState.previous = previous;
+            paginationState.count = count;
+            paginationState.currentPage = currentPage;
+
+            if (!paginationEl) {
+                return;
+            }
+
+            const hasMultiplePages = Boolean(next || previous);
+            const totalPages = itemsPerPage > 0 ? Math.max(1, Math.ceil(count / itemsPerPage)) : 1;
+
+            if (!hasMultiplePages) {
+                if (count > 0) {
+                    paginationEl.textContent = `Showing ${count} ingredient${count === 1 ? '' : 's'}.`;
+                } else {
+                    paginationEl.textContent = '';
+                }
+                return;
+            }
+
+            paginationEl.innerHTML = `
+                <button type="button" id="page-prev" ${previous ? '' : 'disabled'}>Previous</button>
+                <span>Page ${currentPage} of ${totalPages} (${count} total)</span>
+                <button type="button" id="page-next" ${next ? '' : 'disabled'}>Next</button>
+            `;
+
+            const prevBtn = document.getElementById('page-prev');
+            const nextBtn = document.getElementById('page-next');
+
+            if (prevBtn) {
+                prevBtn.addEventListener('click', () => {
+                    if (paginationState.previous) {
+                        fetchIngredients({ pageUrl: paginationState.previous });
+                    }
+                });
+            }
+
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    if (paginationState.next) {
+                        fetchIngredients({ pageUrl: paginationState.next });
+                    }
+                });
+            }
+        }
+
+        function renderTable(items) {
+            if (!Array.isArray(items) || items.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="4">No ingredients found.</td></tr>';
+                return;
+            }
+            tableBody.innerHTML = '';
+            for (const item of items) {
+                const tr = document.createElement('tr');
+                tr.dataset.id = item.id;
+                tr.innerHTML = `
+                    <td>${item.name}</td>
+                    <td><input type="number" step="0.01" value="${item.default_unit_weight_g ?? ''}" aria-label="${item.name} default weight" /></td>
+                    <td><input type="number" step="0.01" value="${item.price_per_kg ?? ''}" aria-label="${item.name} price per kg" /></td>
+                    <td><button type="button" class="primary">Save</button></td>
+                `;
+                tr.querySelector('button').addEventListener('click', () => saveRow(tr));
+                tableBody.appendChild(tr);
+            }
+        }
+
+        async function saveRow(row) {
+            const id = row.dataset.id;
+            const inputs = row.querySelectorAll('input');
+            const weightRaw = inputs[0].value.trim();
+            const priceRaw = inputs[1].value.trim();
+
+            const payload = {
+                default_unit_weight_g: weightRaw === '' ? null : Number(weightRaw),
+                price_per_kg: priceRaw === '' ? null : priceRaw
+            };
+
+            if (payload.default_unit_weight_g !== null && Number.isNaN(payload.default_unit_weight_g)) {
+                setStatus('Default weight must be a number.', 'error');
+                return;
+            }
+
+            const button = row.querySelector('button');
+            button.disabled = true;
+            setStatus('Saving…');
+
+            try {
+                const response = await fetch(`/api/recipes/ingredient-prices/${id}/`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || `Save failed (${response.status})`);
+                }
+                setStatus('Saved!', 'success');
+            } catch (error) {
+                console.error(error);
+                setStatus('Could not save changes. Please try again.', 'error');
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        searchForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const query = document.getElementById('search').value.trim();
+            fetchIngredients({ query, missing: filterSelect.value });
+        });
+
+        refreshBtn.addEventListener('click', () => {
+            document.getElementById('search').value = '';
+            filterSelect.value = '';
+            fetchIngredients({ query: '', missing: '' });
+        });
+
+        filterSelect.addEventListener('change', () => {
+            fetchIngredients({ missing: filterSelect.value });
+        });
+
+        fetchIngredients();
+    </script>
+</body>
+</html>
