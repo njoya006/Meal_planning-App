@@ -2,6 +2,7 @@ import logging
 from datetime import timedelta
 from typing import Optional
 
+from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
@@ -93,7 +94,6 @@ from .serializers import (
 from .models import WebsocketToken
 from .integrations.daily import DailyClient, DailyAPIError
 import datetime, jwt, secrets
-from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
 
 
@@ -238,6 +238,27 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
             return [IsLiveSessionHost()]
         return super().get_permissions()
 
+    def get_queryset(self):
+        """Allow clients to request ?status=live even if backend uses different flags.
+
+        The frontend historically asked for `status=live`. Rather than forcing the
+        client to change, accept that value and translate it into a queryset that
+        matches any session that appears live by our internal representations:
+        - `is_live` True
+        - `started_at` not null and `ended_at` is null
+        - has provider Daily metadata (external_room_name or external_room_url)
+        - in_progress flags (legacy) if present
+        """
+        qs = super().get_queryset()
+        status_param = (self.request.query_params.get('status') or '').strip().lower()
+        if status_param in {'live', 'started', 'active', 'in_progress'}:
+            from django.db.models import Q
+            live_q = Q(is_live=True) | Q(started_at__isnull=False, ended_at__isnull=True) | Q(external_room_name__gt='') | Q(external_room_url__gt='')
+            if hasattr(LiveSession, 'in_progress'):
+                live_q = live_q | Q(in_progress=True)
+            qs = qs.filter(live_q)
+        return qs
+
     def perform_create(self, serializer):
         """Ensure the host is set and provision streaming resources when configured."""
         user = self.request.user if getattr(self.request, 'user', None) and self.request.user.is_authenticated else None
@@ -318,6 +339,15 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
             logger.warning("Daily token response missing token for session %s: %s", session.pk, token_payload)
             raise StreamingProvisioningError(detail='Streaming provider returned an invalid token response.')
 
+        if is_owner and not session.is_live:
+            # Mark the session live when the host receives a control token so the
+            # UI immediately reflects the live state.
+            session.is_live = True
+            if not session.started_at:
+                session.started_at = timezone.now()
+            session.ended_at = None
+            session.save(update_fields=['is_live', 'started_at', 'ended_at'])
+
         payload = {
             'token': token,
             'room_name': session.external_room_name,
@@ -344,11 +374,11 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
         except StreamingProvisioningError as exc:
             return Response({'detail': str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
 
-        from django.utils import timezone
         session.is_live = True
         session.started_at = timezone.now()
+        session.ended_at = None
         session.viewer_count = 0
-        session.save()
+        session.save(update_fields=['is_live', 'started_at', 'ended_at', 'viewer_count'])
         return Response(self.get_serializer(session).data)
 
     @action(detail=True, methods=['post'])
