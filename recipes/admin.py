@@ -250,11 +250,14 @@ class LiveSessionAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         # If provider is set to Daily and no room is provisioned, provision it
         from recipes.views import LiveSessionViewSet
+        import logging
+        logger = logging.getLogger("recipes.admin.LiveSessionAdmin")
         if getattr(obj, 'provider', None) == getattr(obj, 'PROVIDER_DAILY', 'daily') and not obj.external_room_url:
-            # Use the same logic as the API to provision the room
             try:
                 LiveSessionViewSet._provision_external_room(LiveSessionViewSet, obj)
+                logger.info(f"Daily room provisioned for session {obj.pk}: name={obj.external_room_name}, url={obj.external_room_url}")
             except Exception as exc:
-                import logging
-                logging.warning(f"Daily room provisioning failed in admin: {exc}")
+                logger.error(f"Daily room provisioning failed in admin for session {obj.pk}: {exc}", exc_info=True)
+        else:
+            logger.info(f"No provisioning needed for session {obj.pk}: provider={getattr(obj, 'provider', None)}, external_room_url={obj.external_room_url}")
         super().save_model(request, obj, form, change)
