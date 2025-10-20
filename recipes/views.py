@@ -260,14 +260,18 @@ class LiveSessionViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        """Ensure the host is set and provision streaming resources when configured."""
+        """Ensure the host is set and always provision a Daily room if provider is not set or is local."""
         user = self.request.user if getattr(self.request, 'user', None) and self.request.user.is_authenticated else None
         session = serializer.save(host=user) if user is not None else serializer.save()
-        try:
-            self._provision_external_room(session)
-        except StreamingProvisioningError:
-            session.delete()
-            raise
+        # Always provision a Daily room unless already set
+        if not session.provider or session.provider == getattr(session, 'PROVIDER_LOCAL', 'local'):
+            session.provider = getattr(session, 'PROVIDER_DAILY', 'daily')
+            try:
+                self._provision_external_room(session)
+            except StreamingProvisioningError:
+                session.delete()
+                raise
+        # If already provisioned, do nothing
 
     def _provision_external_room(self, session: LiveSession) -> None:
         client = DailyClient.from_settings()
