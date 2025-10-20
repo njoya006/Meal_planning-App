@@ -1,5 +1,22 @@
 from django.contrib import admin
-from .models import Recipe, Ingredient, RecipeIngredient, BadIngredient, IngredientSubstitution, IngredientSynonym, Category, Cuisine, Tag, BasicIngredient, UserPantry, BasicIngredientUsage, RecipeRating, RecipeLike, RecipeComment # Import your models
+from .models import (
+    Recipe,
+    Ingredient,
+    RecipeIngredient,
+    BadIngredient,
+    IngredientSubstitution,
+    IngredientSynonym,
+    Category,
+    Cuisine,
+    Tag,
+    BasicIngredient,
+    UserPantry,
+    BasicIngredientUsage,
+    RecipeRating,
+    RecipeLike,
+    RecipeComment,
+    LiveSession,
+)  # Import your models
 
 # --- Option 1: Basic Registration ---
 # This is the simplest way to get your models into the admin.
@@ -221,3 +238,11 @@ class RecipeCommentAdmin(admin.ModelAdmin):
     search_fields = ['recipe__title', 'user__username', 'content']
     readonly_fields = ['created_at', 'updated_at']
     list_editable = ['is_approved']
+
+
+@admin.register(LiveSession)
+class LiveSessionAdmin(admin.ModelAdmin):
+    list_display = ('title', 'host', 'provider', 'is_live', 'started_at', 'ended_at')
+    list_filter = ('provider', 'is_live', 'created_at')
+    search_fields = ('title', 'host__username', 'slug')
+    readonly_fields = ('created_at', 'updated_at')
