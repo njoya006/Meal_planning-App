@@ -246,3 +246,15 @@ class LiveSessionAdmin(admin.ModelAdmin):
     list_filter = ('provider', 'is_live', 'created_at')
     search_fields = ('title', 'host__username', 'slug')
     readonly_fields = ('created_at', 'updated_at')
+
+    def save_model(self, request, obj, form, change):
+        # If provider is set to Daily and no room is provisioned, provision it
+        from recipes.views import LiveSessionViewSet
+        if getattr(obj, 'provider', None) == getattr(obj, 'PROVIDER_DAILY', 'daily') and not obj.external_room_url:
+            # Use the same logic as the API to provision the room
+            try:
+                LiveSessionViewSet._provision_external_room(LiveSessionViewSet, obj)
+            except Exception as exc:
+                import logging
+                logging.warning(f"Daily room provisioning failed in admin: {exc}")
+        super().save_model(request, obj, form, change)
