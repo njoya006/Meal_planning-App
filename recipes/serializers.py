@@ -29,8 +29,10 @@ class IngredientPriceEntrySerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
+        # Provide better defaults for missing fields
+        data['name'] = data.get('name') or 'Not set'
         price_obj = getattr(instance, 'price', None)
-        data['price_per_kg'] = str(price_obj.price_per_kg) if price_obj else None
+        data['price_per_kg'] = str(price_obj.price_per_kg) if price_obj and price_obj.price_per_kg is not None else 'Not set'
         return data
 
     def update(self, instance, validated_data):
